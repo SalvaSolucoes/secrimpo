@@ -7,7 +7,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
-## [0.2.0] - 2025
+## [0.2.0] - 14/11/2025
 
 **Atualização - Sistema de Filtros e Melhorias**
 
