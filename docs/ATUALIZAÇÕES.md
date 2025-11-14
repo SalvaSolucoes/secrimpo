@@ -7,6 +7,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+<<<<<<< HEAD
 ## [0.3.0] - 15/01/2025
 
 **Atualização - Sistema de Suporte Integrado**
@@ -41,6 +42,9 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ---
 
 ## [0.2.0] - 15/01/2025
+=======
+## [0.2.0] - 14/11/2025
+>>>>>>> df68d628a1cac7dd483a5a41ab91eabe4ec3acdb
 
 **Atualização - Sistema de Filtros e Melhorias**
 
