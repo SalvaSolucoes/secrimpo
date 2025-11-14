@@ -1,0 +1,108 @@
+{
+  "name": "secrimpo-pmdf",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SEU_USUARIO/SecrimpoPMDF.git"
+  },
+  "description": "Painel para gestão de ocorrências",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win --x64",
+    "build:win": "electron-builder --win --x64",
+    "build:portable": "electron-builder --win portable --x64"
+  },
+  "keywords": [
+    "pmdf",
+    "ocorrencias",
+    "electron"
+  ],
+  "author": "SalvaSoluções",
+  "license": "ISC",
+  "dependencies": {
+    "chart.js": "^4.4.0",
+    "dotenv": "^16.3.1",
+    "flatpickr": "^4.6.13",
+    "mammoth": "^1.11.0",
+    "pdfjs-dist": "^4.8.69",
+    "tesseract.js": "^6.0.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.salvasolucoes.secrimpo",
+    "productName": "SECRIMPO PMDF",
+    "copyright": "© 2025 SalvaSoluções",
+    "compression": "maximum",
+    "artifactName": "${productName}.${ext}",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/App_Logo.ico",
+      "publisherName": "SalvaSoluções",
+      "verifyUpdateCodeSignature": false,
+      "requestedExecutionLevel": "asInvoker",
+      "fileAssociations": []
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "installerIcon": "assets/App_Logo.ico",
+      "uninstallerIcon": "assets/App_Logo.ico",
+      "installerHeaderIcon": "assets/App_Logo.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "menuCategory": false,
+      "shortcutName": "SECRIMPO PMDF",
+      "displayLanguageSelector": false,
+      "installerLanguages": [
+        "pt_BR"
+      ],
+      "language": "1046",
+      "perMachine": false,
+      "warningsAsErrors": false,
+      "artifactName": "${productName}.${ext}",
+      "uninstallDisplayName": "SECRIMPO PMDF",
+      "include": null,
+      "guid": "a3c4f2e1-8b9d-4a5c-9f1e-2d3b4c5a6e7f",
+      "differentialPackage": true
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable.${ext}"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "asarUnpack": [],
+    "extraResources": [
+      {
+        "from": "auth/dist/auth_keyauth.exe",
+        "to": "auth/auth_keyauth.exe"
+      }
+    ],
+    "extraMetadata": {
+      "main": "src/main.js"
+    }
+  }
+}

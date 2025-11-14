@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SECRIMPO PMDF - REGISTROS</title>
+    <link rel="stylesheet" href="../styles/panel.css">
+    <link rel="stylesheet" href="../styles/loading.css">
+    <link rel="stylesheet" href="../styles/custom-alert.css">
+    <link rel="stylesheet" href="../styles/autocomplete.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-small">
+                    <img src="../../assets/PMDF_LetraBranca_Panel.png" alt="Logo PMDF" class="logo-header">
+                </div>
+                <h1>Registro de Ocorrências</h1>
+            </div>
+            <div class="header-right">
+                <div class="logo-small">
+                    <img src="../../assets/GDF_logo.jpg" alt="Logo GDF" class="logo-header">
+                </div>
+                <div class="user-menu-container">
+                    <button class="user-menu-button" id="userMenuBtn">
+                        <svg class="user-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                            <circle cx="12" cy="9" r="3.5" fill="currentColor"/>
+                            <path d="M4 20.5c0-4.5 3.5-7.5 8-7.5s8 3 8 7.5" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <svg class="dropdown-user-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                <circle cx="12" cy="9" r="3.5" fill="currentColor"/>
+                            </svg>
+                            <span class="user-info" id="userInfo">Usuário conectado</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item" id="logoutBtn">
+                            <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                <polyline points="16 17 21 12 16 7"/>
+                                <line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                            <span>Sair</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab" id="tabDashboard">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Controle de Ocorrências
+            </button>
+            <button class="nav-tab active" id="tabNovaOcorrencia">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nova Ocorrência
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Tela Inicial de Seleção de Modo -->
+            <div class="mode-selection-screen" id="modeSelectionScreen">
+                <div class="selection-container">
+                    <div class="selection-header">
+                        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        <h1 class="selection-title">Nova Ocorrência</h1>
+                        <p class="selection-subtitle">Escolha como deseja preencher o formulário de ocorrência</p>
+                    </div>
+                    
+                    <div class="selection-options">
+                        <button type="button" class="selection-card" id="selectManualMode">
+                            <div class="card-icon-wrapper">
+                                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                            </div>
+                            <h2 class="card-title">Preenchimento Manual</h2>
+                            <p class="card-description">Digite todas as informações manualmente no formulário</p>
+                        </button>
+                        
+                        <button type="button" class="selection-card" id="selectFileMode">
+                            <div class="card-icon-wrapper">
+                                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </div>
+                            <h2 class="card-title">Preenchimento por Arquivo</h2>
+                            <p class="card-description">Extraia dados automaticamente de PDF, Word, imagens ou texto</p>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção de Upload de Arquivo (oculta inicialmente) -->
+            <div class="file-upload-section" id="fileUploadSection" style="display: none;">
+                <button type="button" class="btn-back" id="backFromFileBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="12" x2="5" y2="12"/>
+                        <polyline points="12 19 5 12 12 5"/>
+                    </svg>
+                    Voltar
+                </button>
+                
+                <div class="upload-container">
+                    <div class="upload-area" id="uploadArea">
+                        <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <h3>Arraste o arquivo aqui ou clique para selecionar</h3>
+                        <p>Formatos suportados: PDF, Word (.docx), Imagens (JPG, PNG), TXT</p>
+                        <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.bmp,.tiff,.txt" style="display: none;">
+                        <button type="button" class="btn-upload" id="selectFileBtn">Selecionar Arquivo</button>
+                    </div>
+                    <div class="file-info" id="fileInfo" style="display: none;">
+                        <div class="file-details">
+                            <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                            <div class="file-text">
+                                <span class="file-name" id="fileName"></span>
+                                <span class="file-size" id="fileSize"></span>
+                            </div>
+                            <button type="button" class="btn-remove" id="removeFileBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="18" y1="6" x2="6" y2="18"/>
+                                    <line x1="6" y1="6" x2="18" y2="18"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <button type="button" class="btn-extract" id="extractBtn">
+                            Extrair e Preencher Dados
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulário de Ocorrência (oculto inicialmente) -->
+            <div class="form-wrapper" id="formWrapper" style="display: none;">
+                <button type="button" class="btn-back" id="backFromFormBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="19" y1="12" x2="5" y2="12"/>
+                        <polyline points="12 19 5 12 12 5"/>
+                    </svg>
+                    Voltar
+                </button>
+                
+                <form id="occurrenceForm" class="occurrence-form">
+                
+                <!-- Seção Ocorrência -->
+                <section class="form-section">
+                    <h2 class="section-title">
+                        Dados da Ocorrência
+                    </h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="numeroGenesis">Nº Genesis</label>
+                            <input type="text" id="numeroGenesis" name="numeroGenesis" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="unidade">Unidade</label>
+                            <select id="unidade" name="unidade" required>
+                                <option value="">Selecione...</option>
+                                <option value="8º BPM">8º BPM</option>
+                                <option value="10º BPM">10º BPM</option>
+                                <option value="16º BPM">16º BPM</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="dataApreensao">Data da Apreensão</label>
+                            <input type="text" id="dataApreensao" name="dataApreensao" placeholder="dd/mm/aaaa" maxlength="10" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="leiInfrigida">Lei Infringida</label>
+                            <input type="text" id="leiInfrigida" name="leiInfrigida" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="artigo">Artigo</label>
+                            <input type="text" id="artigo" name="artigo" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Status</label>
+                            <select id="status" name="status" required>
+                                <option value="">Selecione primeiro a espécie...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="numeroPje">Nº PJE</label>
+                            <input type="text" id="numeroPje" name="numeroPje" placeholder="Opcional">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Seção Item Apreendido -->
+                <section class="form-section">
+                    <h2 class="section-title">
+                        Item Apreendido
+                    </h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="especie">Espécie</label>
+                            <select id="especie" name="especie" required>
+                                <option value="">Selecione...</option>
+                                <option value="SUBSTÂNCIA">SUBSTÂNCIA</option>
+                                <option value="OBJETO">OBJETO</option>
+                                <option value="SIMULACRO">SIMULACRO</option>
+                                <option value="ARMA BRANCA">ARMA BRANCA</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="item">Item</label>
+                            <input type="text" id="item" name="item" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="quantidade">Quantidade</label>
+                            <input type="text" id="quantidade" name="quantidade" required>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="descricaoItem">Descrição</label>
+                            <textarea id="descricaoItem" name="descricaoItem" rows="3"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Seção Proprietário -->
+                <section class="form-section">
+                    <h2 class="section-title">
+                        Dados do Proprietário
+                    </h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="nomeProprietario">Nome Completo</label>
+                            <input type="text" id="nomeProprietario" name="nomeProprietario" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="tipoDocumento">Tipo de Documento</label>
+                            <select id="tipoDocumento" name="tipoDocumento" required>
+                                <option value="">Selecione...</option>
+                                <option value="CPF">CPF</option>
+                                <option value="RG">RG</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="numeroDocumento">Nº Documento</label>
+                            <input type="text" id="numeroDocumento" name="numeroDocumento" required>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Seção Policial -->
+                <section class="form-section">
+                    <h2 class="section-title">
+                        Dados do Policial
+                    </h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="nomePolicial">Nome Completo</label>
+                            <input type="text" id="nomePolicial" name="nomePolicial" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="matricula">Matrícula</label>
+                            <input type="text" id="matricula" name="matricula" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="graduacao">Graduação</label>
+                            <select id="graduacao" name="graduacao" required>
+                                <option value="">Selecione...</option>
+                                <option value="Soldado de 2ª Classe">Soldado 2ª Classe</option>
+                                <option value="Soldado de 1ª Classe">Soldado 1ª Classe</option>
+                                <option value="Cabo">Cabo</option>
+                                <option value="3º Sargento">3º Sargento</option>
+                                <option value="2º Sargento">2º Sargento</option>
+                                <option value="1º Sargento">1º Sargento</option>
+                                <option value="Subtenente">Subtenente</option>
+                                <option value="Aspirante-a-Oficial">Aspirante-a-Oficial</option>
+                                <option value="Segundo-Tenente">Segundo-Tenente</option>
+                                <option value="Primeiro-Tenente">Primeiro-Tenente</option>
+                                <option value="Capitão">Capitão</option>
+                                <option value="Major">Major</option>
+                                <option value="Tenente-Coronel">Tenente-Coronel</option>
+                                <option value="Coronel">Coronel</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="unidadePolicial">Unidade</label>
+                            <input type="text" id="unidadePolicial" name="unidadePolicial" required>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Botões de Ação -->
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="clearBtn">Limpar Formulário</button>
+                    <button type="submit" class="btn-primary" id="submitBtn">
+                        <span class="btn-text">Registrar Ocorrência</span>
+                        <span class="btn-loader" style="display: none;">Salvando...</span>
+                    </button>
+                </div>
+
+                <div id="successMessage" class="success-message" style="display: none;"></div>
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Processando</div>
+            <div class="loading-subtext" id="loadingSubtext">Aguarde um momento</div>
+        </div>
+    </div>
+
+    <script src="../scripts/custom-alert.js"></script>
+    <script src="../scripts/leisBrasileiras.js"></script>
+    <script src="../scripts/autocomplete.js"></script>
+    <script src="../scripts/panel.js"></script>
+    
+    <!-- Sistema de Atualizações -->
+    <script src="../updater/update-notification.js"></script>
+    <script src="../updater/update-client.js"></script>
+</body>
+</html>

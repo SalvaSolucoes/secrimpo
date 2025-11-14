@@ -1,15 +1,26 @@
-// Função para normalizar capitalização de texto (primeira letra maiúscula, resto minúsculo)
-function normalizeCapitalization(text) {
+// Função para converter texto para maiúsculas
+function convertToUppercase(text) {
   if (!text || typeof text !== 'string') return text;
   
-  // Remover espaços extras no início e fim
-  text = text.trim();
-  
-  // Se estiver vazio após trim, retornar vazio
-  if (text.length === 0) return text;
-  
-  // Converter para minúsculo e depois primeira letra maiúscula
-  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+  // Remover espaços extras no início e fim e converter para maiúsculas
+  return text.trim().toUpperCase();
+}
+
+// Função para converter array de dados para maiúsculas (exceto datas e números)
+function convertArrayToUppercase(values) {
+  return values.map((value, index) => {
+    // Não converter datas (índices específicos) e valores numéricos
+    if (value instanceof Date || typeof value === 'number') {
+      return value;
+    }
+    
+    // Converter strings para maiúsculas
+    if (typeof value === 'string' && value.trim() !== '') {
+      return convertToUppercase(value);
+    }
+    
+    return value;
+  });
 }
 
 function doGet(e) {
@@ -17,7 +28,7 @@ function doGet(e) {
     const params = e.parameter;
     
     // Se for requisição de TCOs
-    if (params.type === 'tco') {
+    if (params.action === 'get_tcos') {
       return getTCOs();
     }
     
@@ -34,7 +45,7 @@ function doGet(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
-    const dataRange = sheet.getRange(3, 1, lastRow - 2, 19); // A3 até S (19 colunas a partir da coluna A)
+    const dataRange = sheet.getRange(3, 1, lastRow - 2, 20); // A3 até T (20 colunas a partir da coluna A)
     const values = dataRange.getValues();
     
     const occurrences = values.map(row => ({
@@ -45,18 +56,19 @@ function doGet(e) {
       leiInfrigida: row[4],
       artigo: row[5],
       status: row[6],
-      especie: row[7],
-      item: row[8],
-      quantidade: row[9],
-      descricaoItem: row[10],
-      nomeProprietario: row[11],
-      tipoDocumento: row[12],
-      numeroDocumento: row[13],
-      nomePolicial: row[14],
-      matricula: row[15],
-      graduacao: row[16],
-      unidadePolicial: row[17],
-      registradoPor: row[18]
+      numeroPje: row[7],
+      especie: row[8],
+      item: row[9],
+      quantidade: row[10],
+      descricaoItem: row[11],
+      nomeProprietario: row[12],
+      tipoDocumento: row[13],
+      numeroDocumento: row[14],
+      nomePolicial: row[15],
+      matricula: row[16],
+      graduacao: row[17],
+      unidadePolicial: row[18],
+      registradoPor: row[19]
     }));
     
     return ContentService.createTextOutput(JSON.stringify({
@@ -104,9 +116,9 @@ function getTCOs() {
       .filter(row => row[0] && row[0] !== '') // Filtrar linhas vazias
       .map((row, index) => ({
         id: 'tco_' + (index + 1),
-        rap: row[0],        // Coluna A: RAP (Nº Genesis)
-        envolvido: row[1],  // Coluna B: Envolvido (Nome Completo)
-        ilicito: row[2]     // Coluna C: Ilícito (Item)
+        rap: row[0],           // Coluna A: RAP (Nº Genesis)
+        envolvido: row[1],     // Coluna B: Envolvido (Nome Completo)
+        ilicito: row[2]        // Coluna C: Ilícito (Espécie)
       }));
     
     return ContentService.createTextOutput(JSON.stringify({
@@ -128,6 +140,46 @@ function doPost(e) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
     const data = JSON.parse(e.postData.contents);
     
+    // Se for uma ação de adicionar TCO
+    if (data.action === 'add_tco') {
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      let tcoSheet;
+      
+      // Verificar se existe a Página 2, se não, criar
+      if (spreadsheet.getSheets().length < 2) {
+        tcoSheet = spreadsheet.insertSheet('TCOs');
+        // Adicionar cabeçalhos na Página 2 (TCO)
+        tcoSheet.getRange(1, 1, 1, 3).setValues([[
+          'RAP (GÊNESIS)', 'Envolvido', 'Ilícito'
+        ]]);
+        // Formatar cabeçalhos
+        const headerRange = tcoSheet.getRange(1, 1, 1, 3);
+        headerRange.setFontWeight('bold');
+        headerRange.setBackground('#28a745');
+        headerRange.setFontColor('white');
+      } else {
+        tcoSheet = spreadsheet.getSheets()[1]; // Página 2
+      }
+      
+      const tcoLastRow = tcoSheet.getLastRow();
+      const tcoNextRow = Math.max(3, tcoLastRow + 1);
+      
+      // Dados para TCO - APENAS 3 campos (em maiúsculas)
+      const tcoData = [
+        convertToUppercase(data.rap || ''),           // RAP (Nº Genesis)
+        convertToUppercase(data.envolvido || ''),     // Envolvido (Nome)
+        convertToUppercase(data.ilicito || '')        // Ilícito (Espécie)
+      ];
+      
+      // Inserir na Página 2
+      tcoSheet.getRange(tcoNextRow, 1, 1, 3).setValues([tcoData]);
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        message: 'TCO adicionado com sucesso'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
     // Se for uma ação de atualização
     if (data.action === 'update') {
       const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -140,73 +192,75 @@ function doPost(e) {
       for (let i = 3; i <= lastRow; i++) {
         const valorCelula = mainSheet.getRange(i, 2).getValue();
         if (valorCelula == numeroParaBusca) {
-          const especieNormalizada = normalizeCapitalization(data.especie);
-          const itemNormalizado = normalizeCapitalization(data.item);
-          
-          // Atualizar a linha encontrada (a partir da coluna A = índice 1)
-          mainSheet.getRange(i, 1, 1, 19).setValues([[
+          // Atualizar a linha encontrada (a partir da coluna A = índice 1) - todos em maiúsculas
+          const updatedRow = [
             data.timestamp,
-            numeroGenesisNovo,
-            data.unidade,
+            convertToUppercase(numeroGenesisNovo),
+            convertToUppercase(data.unidade),
             data.dataApreensao,
-            data.leiInfrigida,
-            data.artigo,
-            data.status,
-            especieNormalizada,
-            itemNormalizado,
-            data.quantidade,
-            data.descricaoItem,
-            data.nomeProprietario,
-            data.tipoDocumento,
-            data.numeroDocumento,
-            data.nomePolicial,
-            data.matricula,
-            data.graduacao,
-            data.unidadePolicial,
-            data.registradoPor
-          ]]);
+            convertToUppercase(data.leiInfrigida),
+            convertToUppercase(data.artigo),
+            convertToUppercase(data.status),
+            convertToUppercase(data.numeroPje),
+            convertToUppercase(data.especie),
+            convertToUppercase(data.item),
+            convertToUppercase(data.quantidade),
+            convertToUppercase(data.descricaoItem),
+            convertToUppercase(data.nomeProprietario),
+            convertToUppercase(data.tipoDocumento),
+            convertToUppercase(data.numeroDocumento),
+            convertToUppercase(data.nomePolicial),
+            convertToUppercase(data.matricula),
+            convertToUppercase(data.graduacao),
+            convertToUppercase(data.unidadePolicial),
+            convertToUppercase(data.registradoPor)
+          ];
           
-          // Verificar se a espécie é "Droga" para atualizar/inserir no TCO
-          if (especieNormalizada && especieNormalizada.toLowerCase() === 'droga') {
-            const tcoSheet = spreadsheet.getSheets()[1]; // Página 2
-            const tcoLastRow = tcoSheet.getLastRow();
-            
-            // Procurar se já existe um TCO com este RAP
-            let tcoRowIndex = -1;
-            for (let j = 3; j <= tcoLastRow; j++) {
-              const rapTCO = tcoSheet.getRange(j, 1).getValue();
-              if (rapTCO == numeroParaBusca || rapTCO == numeroGenesisNovo) {
-                tcoRowIndex = j;
-                break;
-              }
-            }
-            
-            const tcoData = [
-              numeroGenesisNovo,     // RAP (Nº Genesis)
-              data.nomeProprietario, // Envolvido (Nome Completo)
-              itemNormalizado        // Ilícito (Item)
-            ];
-            
-            if (tcoRowIndex !== -1) {
-              // Atualizar TCO existente
-              tcoSheet.getRange(tcoRowIndex, 1, 1, 3).setValues([tcoData]);
-            } else {
-              // Inserir novo TCO
-              const tcoNextRow = Math.max(3, tcoLastRow + 1);
-              tcoSheet.getRange(tcoNextRow, 1, 1, 3).setValues([tcoData]);
-            }
+          mainSheet.getRange(i, 1, 1, 20).setValues([updatedRow]);
+          
+          // Migrar dados da ocorrência para TCO (Página 2)
+          let tcoSheet;
+          if (spreadsheet.getSheets().length < 2) {
+            tcoSheet = spreadsheet.insertSheet('TCOs');
+            // Adicionar cabeçalhos na Página 2 (TCO)
+            tcoSheet.getRange(1, 1, 1, 3).setValues([[
+              'RAP (GÊNESIS)', 'Envolvido', 'Ilícito'
+            ]]);
+            // Formatar cabeçalhos
+            const headerRange = tcoSheet.getRange(1, 1, 1, 3);
+            headerRange.setFontWeight('bold');
+            headerRange.setBackground('#28a745');
+            headerRange.setFontColor('white');
           } else {
-            // Se a espécie NÃO é droga, remover do TCO se existir
-            const tcoSheet = spreadsheet.getSheets()[1]; // Página 2
-            const tcoLastRow = tcoSheet.getLastRow();
-            
-            for (let j = 3; j <= tcoLastRow; j++) {
-              const rapTCO = tcoSheet.getRange(j, 1).getValue();
-              if (rapTCO == numeroParaBusca || rapTCO == numeroGenesisNovo) {
-                tcoSheet.deleteRow(j);
-                break;
-              }
+            tcoSheet = spreadsheet.getSheets()[1]; // Página 2 (TCO)
+          }
+          
+          const tcoLastRow = tcoSheet.getLastRow();
+          
+          // Procurar se já existe um TCO com este RAP
+          let tcoRowIndex = -1;
+          for (let j = 3; j <= tcoLastRow; j++) {
+            const rapTCO = tcoSheet.getRange(j, 1).getValue();
+            if (rapTCO == numeroParaBusca || rapTCO == numeroGenesisNovo) {
+              tcoRowIndex = j;
+              break;
             }
+          }
+          
+          // Dados migrados da OCORRÊNCIA para TCO - APENAS 3 campos (em maiúsculas)
+          const tcoData = [
+            convertToUppercase(numeroGenesisNovo),     // RAP = Nº Genesis da ocorrência
+            convertToUppercase(data.nomeProprietario), // ENVOLVIDO = Nome completo do proprietário
+            convertToUppercase(data.especie)           // ILÍCITO = Espécie da ocorrência
+          ];
+          
+          if (tcoRowIndex !== -1) {
+            // Atualizar TCO existente com dados da ocorrência
+            tcoSheet.getRange(tcoRowIndex, 1, 1, 3).setValues([tcoData]);
+          } else {
+            // Inserir novo TCO com dados migrados da ocorrência
+            const tcoNextRow = Math.max(3, tcoLastRow + 1);
+            tcoSheet.getRange(tcoNextRow, 1, 1, 3).setValues([tcoData]);
           }
           
           return ContentService.createTextOutput(JSON.stringify({
@@ -255,35 +309,46 @@ function doPost(e) {
       const lastRow = mainSheet.getLastRow();
       const nextRow = Math.max(3, lastRow + 1);
       
-      // Normalizar capitalização dos campos especie (índice 7) e item (índice 8)
-      const normalizedValues = data.values.map((value, index) => {
-        if (index === 7 || index === 8) {
-          return normalizeCapitalization(value);
-        }
-        return value;
-      });
+      // Converter todos os campos para maiúsculas (exceto datas e números)
+      const uppercaseValues = convertArrayToUppercase(data.values);
       
-      // Inserir dados a partir da coluna A (1ª coluna) na Página 1
-      mainSheet.getRange(nextRow, 1, 1, normalizedValues.length).setValues([normalizedValues]);
+      // Garantir que apenas 20 colunas (A até T) sejam inseridas na Página 1
+      const limitedValues = uppercaseValues.slice(0, 20);
       
-      // Verificar se a espécie é "Droga" para salvar também na Página 2 (TCO)
-      const especie = normalizedValues[7]; // Índice 7 = espécie
+      // Inserir dados da OCORRÊNCIA na Página 1 (máximo 20 colunas)
+      mainSheet.getRange(nextRow, 1, 1, 20).setValues([limitedValues]);
       
-      if (especie && especie.toLowerCase() === 'droga') {
-        const tcoSheet = spreadsheet.getSheets()[1]; // Página 2
-        const tcoLastRow = tcoSheet.getLastRow();
-        const tcoNextRow = Math.max(3, tcoLastRow + 1);
-        
-        // Dados para TCO: RAP (Nº Genesis), Envolvido (Nome Completo), Ilícito (Item)
-        const tcoData = [
-          normalizedValues[1],  // Nº Genesis (índice 1)
-          normalizedValues[11], // Nome Completo (índice 11)
-          normalizedValues[8]   // Item (índice 8)
-        ];
-        
-        // Inserir na Página 2
-        tcoSheet.getRange(tcoNextRow, 1, 1, 3).setValues([tcoData]);
+      // Migrar automaticamente dados da OCORRÊNCIA para TCO (Página 2)
+      let tcoSheet;
+      
+      // Verificar se existe a Página 2 (TCO), se não, criar
+      if (spreadsheet.getSheets().length < 2) {
+        tcoSheet = spreadsheet.insertSheet('TCOs');
+        // Adicionar cabeçalhos na Página 2 (TCO)
+        tcoSheet.getRange(1, 1, 1, 3).setValues([[
+          'RAP (GÊNESIS)', 'Envolvido', 'Ilícito'
+        ]]);
+        // Formatar cabeçalhos do TCO
+        const headerRange = tcoSheet.getRange(1, 1, 1, 3);
+        headerRange.setFontWeight('bold');
+        headerRange.setBackground('#28a745');
+        headerRange.setFontColor('white');
+      } else {
+        tcoSheet = spreadsheet.getSheets()[1]; // Página 2 (TCO)
       }
+      
+      const tcoLastRow = tcoSheet.getLastRow();
+      const tcoNextRow = Math.max(3, tcoLastRow + 1);
+      
+      // Migrar dados da OCORRÊNCIA para TCO - APENAS 3 campos (já em maiúsculas)
+      const tcoData = [
+        limitedValues[1],  // RAP = Nº Genesis da ocorrência
+        limitedValues[12], // ENVOLVIDO = Nome completo do proprietário (posição ajustada)
+        limitedValues[8]   // ILÍCITO = Espécie da ocorrência (posição ajustada)
+      ];
+      
+      // Inserir TCO migrado na Página 2 
+      tcoSheet.getRange(tcoNextRow, 1, 1, 3).setValues([tcoData]);
       
       return ContentService.createTextOutput(JSON.stringify({
         success: true,

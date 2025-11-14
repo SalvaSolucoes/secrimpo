@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SECRIMPO PMDF - CONTROLE DE OCORRÊNCIAS</title>
+    <link rel="stylesheet" href="../styles/dashboard.css">
+    <link rel="stylesheet" href="../styles/panel.css">
+    <link rel="stylesheet" href="../styles/loading.css">
+    <link rel="stylesheet" href="../styles/custom-alert.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-small">
+                    <img src="../../assets/PMDF_LetraBranca_Panel.png" alt="Logo PMDF" class="logo-header">
+                </div>
+                <h1>Controle de Ocorrências</h1>
+            </div>
+            <div class="header-right">
+                <div class="logo-small">
+                    <img src="../../assets/GDF_logo.jpg" alt="Logo GDF" class="logo-header">
+                </div>
+                <div class="user-menu-container">
+                    <button class="user-menu-button" id="userMenuBtn">
+                        <svg class="user-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                            <circle cx="12" cy="9" r="3.5" fill="currentColor"/>
+                            <path d="M4 20.5c0-4.5 3.5-7.5 8-7.5s8 3 8 7.5" fill="currentColor"/>
+                        </svg>
+                    </button>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <svg class="dropdown-user-icon" viewBox="0 0 24 24" fill="currentColor">
+                                <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                <circle cx="12" cy="9" r="3.5" fill="currentColor"/>
+                                <path d="M4 20.5c0-4.5 3.5-7.5 8-7.5s8 3 8 7.5" fill="currentColor"/>
+                            </svg>
+                            <span class="user-info" id="userInfo">Usuário conectado</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item" id="logoutBtn">
+                            <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                                <polyline points="16 17 21 12 16 7"/>
+                                <line x1="21" y1="12" x2="9" y2="12"/>
+                            </svg>
+                            <span>Sair</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <button class="nav-tab" id="tabDashboard">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+                Visão Geral
+            </button>
+            <button class="nav-tab active" id="tabOcorrencias">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <polyline points="10 9 9 9 8 9"/>
+                </svg>
+                Ocorrências
+            </button>
+            <button class="nav-tab" id="tabTCO">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                TCO
+            </button>
+            <button class="nav-tab" id="tabNovaOcorrencia">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nova Ocorrência
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Overview -->
+            <section class="dashboard-section" id="sectionDashboard" style="display: none;">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #279b4d;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Total de Ocorrências</div>
+                            <div class="stat-value" id="statTotal">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #fac709;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Este Mês</div>
+                            <div class="stat-value" id="statMes">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #071d49;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Hoje</div>
+                            <div class="stat-value" id="statHoje">0</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: #c33;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                <circle cx="12" cy="7" r="4"/>
+                            </svg>
+                        </div>
+                        <div class="stat-content">
+                            <div class="stat-label">Usuários Ativos</div>
+                            <div class="stat-value" id="statUsuarios">1</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visão Geral - 3 Gráficos Principais -->
+                <div class="chart-section">
+                    <h2 class="chart-section-title">Visão Geral</h2>
+                    <div class="charts-grid">
+                        <!-- Gráfico 1: Evolução Temporal das Ocorrências -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">Evolução Temporal</h3>
+                                <div class="date-filter">
+                                    <input type="text" id="filterDataInicio" placeholder="Início" maxlength="10">
+                                    <span class="date-separator">até</span>
+                                    <input type="text" id="filterDataFim" placeholder="Fim" maxlength="10">
+                                    <button class="btn-filter" id="btnFilterChart">Filtrar</button>
+                                    <button class="btn-reset-filter" id="btnResetFilter" title="Resetar">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                                            <path d="M21 3v5h-5"/>
+                                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                                            <path d="M3 21v-5h5"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="chart-total">
+                                    <span class="total-label">Total:</span>
+                                    <span class="total-value" id="totalEvolutionOccurrences">0</span>
+                                </div>
+                            </div>
+                            <canvas id="lineChart"></canvas>
+                        </div>
+                        
+                        <!-- Gráfico 2: Distribuição por Unidades -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">Distribuição por Unidades</h3>
+                                <div class="chart-total">
+                                    <span class="total-label">Total:</span>
+                                    <span class="total-value" id="totalUnidadeOccurrences">0</span>
+                                </div>
+                            </div>
+                            <canvas id="pieChartUnidade"></canvas>
+                        </div>
+                        
+                        <!-- Gráfico 3: Tipos de Itens Apreendidos -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3 class="chart-title">Tipos de Itens Apreendidos</h3>
+                                <div class="chart-total">
+                                    <span class="total-label">Total:</span>
+                                    <span class="total-value" id="totalItensOccurrences">0</span>
+                                </div>
+                            </div>
+                            <canvas id="pieChartItens"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Occurrences List -->
+            <section class="occurrences-section" id="sectionOcorrencias">
+                <div class="section-header">
+                    <h2 class="section-title">Todas as Ocorrências</h2>
+                    <div class="search-bar">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <input type="text" id="searchInput" placeholder="Buscar por Nº Genesis...">
+                    </div>
+                    <button class="btn-refresh" id="refreshBtn" title="Atualizar dados">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        Atualizar
+                    </button>
+                    <button class="btn-export" id="exportBtn">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Exportar Excel
+                    </button>
+                </div>
+
+                <!-- Modal de Filtros de Exportação -->
+                <div class="modal-overlay" id="exportFilterModal" style="display: none;">
+                    <div class="modal-content export-filter-modal">
+                        <div class="modal-header">
+                            <h3>Filtros para Exportação</h3>
+                            <button class="modal-close" id="closeExportModal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="filter-section">
+                                <h4>Filtrar por Data</h4>
+                                <div class="date-range-filter">
+                                    <div class="date-input-group">
+                                        <label for="exportDataInicio">Data Início:</label>
+                                        <input type="date" id="exportDataInicio" class="date-input">
+                                    </div>
+                                    <div class="date-input-group">
+                                        <label for="exportDataFim">Data Fim:</label>
+                                        <input type="date" id="exportDataFim" class="date-input">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <h4>Filtrar por Tipo de Item</h4>
+                                <div class="item-filter-group">
+                                    <div class="item-category">
+                                        <div class="checkbox-group">
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterSubstancia" checked>
+                                                <span class="checkmark"></span>
+                                                Substância
+                                            </label>
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterObjeto" checked>
+                                                <span class="checkmark"></span>
+                                                Objeto
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="item-category">
+                                        <div class="checkbox-group">
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterSimulacro" checked>
+                                                <span class="checkmark"></span>
+                                                Simulacro
+                                            </label>
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterArmaBranca" checked>
+                                                <span class="checkmark"></span>
+                                                Arma Branca
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="filter-section">
+                                <h4>Filtrar por Status</h4>
+                                <div class="status-filter-group">
+                                    <div class="status-category">
+                                        <h5>Status para Substância:</h5>
+                                        <div class="checkbox-group">
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterStatusSecrimpo" checked>
+                                                <span class="checkmark"></span>
+                                                SECRIMPO
+                                            </label>
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterStatusIC" checked>
+                                                <span class="checkmark"></span>
+                                                INSTITUTO DE CRIMINALÍSTICA
+                                            </label>
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterStatusDOP" checked>
+                                                <span class="checkmark"></span>
+                                                DOP
+                                            </label>
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterStatusDestruicao" checked>
+                                                <span class="checkmark"></span>
+                                                DESTRUIÇÃO
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="status-category">
+                                        <h5>Status para Objeto:</h5>
+                                        <div class="checkbox-group">
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterStatusSecrimpoObj" checked>
+                                                <span class="checkmark"></span>
+                                                SECRIMPO
+                                            </label>
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterStatusCEGOC" checked>
+                                                <span class="checkmark"></span>
+                                                CEGOC
+                                            </label>
+                                            <label class="checkbox-item">
+                                                <input type="checkbox" id="filterStatusICObj" checked>
+                                                <span class="checkmark"></span>
+                                                IC
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn-secondary" id="resetFiltersBtn">Limpar Filtros</button>
+                            <button class="btn-primary" id="applyFiltersBtn">Exportar com Filtros</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="occurrences-table">
+                        <thead>
+                            <tr>
+                                <th>Nº Genesis</th>
+                                <th>Data</th>
+                                <th>Unidade</th>
+                                <th>Proprietário</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="occurrencesTableBody">
+                            <!-- Dados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    <h3>Nenhuma ocorrência encontrada</h3>
+                    <p>Comece registrando uma nova ocorrência</p>
+                    <button class="btn-primary" id="btnNovaOcorrenciaEmpty">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Nova Ocorrência
+                    </button>
+                </div>
+            </section>
+
+            <!-- TCO List -->
+            <section class="occurrences-section" id="sectionTCO" style="display: none;">
+                <div class="section-header">
+                    <h2 class="section-title">Todos os TCOs</h2>
+                    <div class="search-bar">
+                        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        <input type="text" id="searchInputTCO" placeholder="Buscar por RAP, Envolvido ou Ilícito...">
+                    </div>
+                    <button class="btn-refresh" id="refreshBtnTCO" title="Atualizar dados">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        Atualizar
+                    </button>
+                    <button class="btn-export" id="exportBtnTCO">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Exportar Excel
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table class="occurrences-table">
+                        <thead>
+                            <tr>
+                                <th>RAP (GÊNESIS)</th>
+                                <th>Envolvido</th>
+                                <th>Ilícito</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tcoTableBody">
+                            <!-- Dados serão inseridos via JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal de Filtros de Exportação TCO -->
+    <div class="modal-overlay" id="exportTCOFilterModal" style="display: none;">
+        <div class="modal-content export-filter-modal">
+            <div class="modal-header">
+                <h3>Filtros para Exportação de TCO</h3>
+                <button class="modal-close" id="closeExportTCOModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-section">
+                    <h4>Filtrar por Data</h4>
+                    <div class="date-range-filter">
+                        <div class="date-input-group">
+                            <label for="exportTCODataInicio">Data Início:</label>
+                            <input type="date" id="exportTCODataInicio" class="date-input">
+                        </div>
+                        <div class="date-input-group">
+                            <label for="exportTCODataFim">Data Fim:</label>
+                            <input type="date" id="exportTCODataFim" class="date-input">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filter-section">
+                    <h4>Filtrar por Tipo de Ilícito</h4>
+                    <div class="item-filter-group">
+                        <div class="item-category">
+                            <div class="checkbox-group">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="filterTCOSubstancia" checked>
+                                    <span class="checkmark"></span>
+                                    Substância
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="filterTCOObjeto" checked>
+                                    <span class="checkmark"></span>
+                                    Objeto
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="item-category">
+                            <div class="checkbox-group">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="filterTCOSimulacro" checked>
+                                    <span class="checkmark"></span>
+                                    Simulacro
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" id="filterTCOArmaBranca" checked>
+                                    <span class="checkmark"></span>
+                                    Arma Branca
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="resetTCOFiltersBtn">Limpar Filtros</button>
+                <button class="btn-primary" id="applyTCOFiltersBtn">Exportar com Filtros</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Visualização/Edição -->
+    <div class="modal" id="viewModal">
+        <div class="modal-content modal-form">
+            <div class="modal-header">
+                <h2 id="modalTitle">Detalhes da Ocorrência</h2>
+                <button class="modal-close" id="modalClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <form id="modalOccurrenceForm" class="occurrence-form">
+                    <!-- Seção Ocorrência -->
+                    <section class="form-section">
+                        <h2 class="section-title">Dados da Ocorrência</h2>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="modalNumeroGenesis">Nº Genesis</label>
+                                <input type="text" id="modalNumeroGenesis" name="numeroGenesis" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalUnidade">Unidade</label>
+                                <select id="modalUnidade" name="unidade" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="8º BPM">8º BPM</option>
+                                    <option value="10º BPM">10º BPM</option>
+                                    <option value="16º BPM">16º BPM</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalDataApreensao">Data da Apreensão</label>
+                                <input type="text" id="modalDataApreensao" name="dataApreensao" placeholder="dd/mm/aaaa" maxlength="10" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalLeiInfrigida">Lei Infringida</label>
+                                <input type="text" id="modalLeiInfrigida" name="leiInfrigida" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalArtigo">Artigo</label>
+                                <input type="text" id="modalArtigo" name="artigo" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalStatus">Status</label>
+                                <select id="modalStatus" name="status" required>
+                                    <option value="">Selecione primeiro a espécie...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalNumeroPje">Nº PJE</label>
+                                <input type="text" id="modalNumeroPje" name="numeroPje" placeholder="Opcional">
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Seção Item Apreendido -->
+                    <section class="form-section">
+                        <h2 class="section-title">Item Apreendido</h2>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="modalEspecie">Espécie</label>
+                                <select id="modalEspecie" name="especie" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="SUBSTÂNCIA">SUBSTÂNCIA</option>
+                                    <option value="OBJETO">OBJETO</option>
+                                    <option value="SIMULACRO">SIMULACRO</option>
+                                    <option value="ARMA BRANCA">ARMA BRANCA</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalItem">Item</label>
+                                <input type="text" id="modalItem" name="item" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalQuantidade">Quantidade</label>
+                                <input type="text" id="modalQuantidade" name="quantidade" required>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="modalDescricaoItem">Descrição</label>
+                                <textarea id="modalDescricaoItem" name="descricaoItem" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Seção Proprietário -->
+                    <section class="form-section">
+                        <h2 class="section-title">Dados do Proprietário</h2>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="modalNomeProprietario">Nome Completo</label>
+                                <input type="text" id="modalNomeProprietario" name="nomeProprietario" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalTipoDocumento">Tipo de Documento</label>
+                                <select id="modalTipoDocumento" name="tipoDocumento" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="CPF">CPF</option>
+                                    <option value="RG">RG</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalNumeroDocumento">Nº Documento</label>
+                                <input type="text" id="modalNumeroDocumento" name="numeroDocumento" required>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Seção Policial -->
+                    <section class="form-section">
+                        <h2 class="section-title">Dados do Policial</h2>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="modalNomePolicial">Nome Completo</label>
+                                <input type="text" id="modalNomePolicial" name="nomePolicial" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalMatricula">Matrícula</label>
+                                <input type="text" id="modalMatricula" name="matricula" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalGraduacao">Graduação</label>
+                                <select id="modalGraduacao" name="graduacao" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Soldado de 2ª Classe">Soldado 2ª Classe</option>
+                                    <option value="Soldado de 1ª Classe">Soldado 1ª Classe</option>
+                                    <option value="Cabo">Cabo</option>
+                                    <option value="3º Sargento">3º Sargento</option>
+                                    <option value="2º Sargento">2º Sargento</option>
+                                    <option value="1º Sargento">1º Sargento</option>
+                                    <option value="Subtenente">Subtenente</option>
+                                    <option value="Aspirante-a-Oficial">Aspirante-a-Oficial</option>
+                                    <option value="Segundo-Tenente">Segundo-Tenente</option>
+                                    <option value="Primeiro-Tenente">Primeiro-Tenente</option>
+                                    <option value="Capitão">Capitão</option>
+                                    <option value="Major">Major</option>
+                                    <option value="Tenente-Coronel">Tenente-Coronel</option>
+                                    <option value="Coronel">Coronel</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalUnidadePolicial">Unidade</label>
+                                <input type="text" id="modalUnidadePolicial" name="unidadePolicial" required>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Seção Informações do Registro -->
+                    <section class="form-section">
+                        <h2 class="section-title">Informações do Registro</h2>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="modalRegistradoPor">Registrado Por</label>
+                                <input type="text" id="modalRegistradoPor" name="registradoPor" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label for="modalDataRegistro">Data do Registro</label>
+                                <input type="text" id="modalDataRegistro" name="dataRegistro" disabled>
+                            </div>
+                        </div>
+                    </section>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btnCancelEdit">Cancelar</button>
+                <button class="btn-danger" id="btnDelete" style="display: none;">Excluir</button>
+                <button class="btn-primary" id="btnSaveEdit" style="display: none;">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Confirmar Exclusão</h2>
+                <button class="modal-close" id="deleteModalClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir esta ocorrência? Esta ação não pode ser desfeita.</p>
+                <p class="delete-warning">
+                    <strong>Ocorrência:</strong> <span id="deleteOccurrenceId"></span>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btnCancelDelete">Cancelar</button>
+                <button class="btn-danger" id="btnConfirmDelete">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Impressão -->
+    <div class="modal" id="printModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Opções de Impressão</h2>
+                <button class="modal-close" id="printModalClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="print-info">
+                    <strong>Ocorrência:</strong> <span id="printOccurrenceId"></span>
+                </p>
+                <div class="print-options">
+                    <button class="print-option-btn" id="btnPrintTermoApreensao">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        <span>Termo de Apreensão</span>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btnCancelPrint">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Visualização/Edição de TCO -->
+    <div class="modal" id="tcoModal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="tcoModalTitle">Detalhes do TCO</h2>
+                <button class="modal-close" id="tcoModalClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="tcoModalBody">
+                <!-- Conteúdo será preenchido dinamicamente -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btnCloseTCO">Fechar</button>
+                <button class="btn-primary" id="btnSaveEditTCO" style="display: none;">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão de TCO -->
+    <div class="modal" id="deleteTCOModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Confirmar Exclusão</h2>
+                <button class="modal-close" id="deleteTCOModalClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir este TCO? Esta ação não pode ser desfeita.</p>
+                <p class="delete-warning">
+                    <strong>TCO:</strong> <span id="deleteTCOId"></span>
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btnCancelDeleteTCO">Cancelar</button>
+                <button class="btn-danger" id="btnConfirmDeleteTCO">Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Impressão de TCO -->
+    <div class="modal" id="printTCOModal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Opções de Impressão</h2>
+                <button class="modal-close" id="printTCOModalClose">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="print-info">
+                    <strong>TCO:</strong> <span id="printTCOId"></span>
+                </p>
+                <div class="print-options">
+                    <button class="print-option-btn" id="btnPrintTCODocument">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        <span>Documento TCO</span>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="btnCancelPrintTCO">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loadingText">Processando</div>
+            <div class="loading-subtext" id="loadingSubtext">Aguarde um momento</div>
+        </div>
+    </div>
+
+    <script src="../scripts/custom-alert.js"></script>
+    <script src="../scripts/dashboard.js"></script>
+    
+    <!-- Sistema de Atualizações -->
+    <script src="../updater/update-notification.js"></script>
+    <script src="../updater/update-client.js"></script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+# ========================================
+# DADOS SENSÍVEIS - NUNCA FAZER COMMIT
+# ========================================
+.env
+.env.*
+*.env
+config.json
+credentials.json
+secrets.json
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+auth_token*
+api_key*
+
+# ========================================
+# BUILDS E DISTRIBUIÇÃO - NÃO VERSIONAR
+# ========================================
+dist/
+build/
+out/
+release/
+*.exe
+*.app
+*.dmg
+*.deb
+*.rpm
+*.msi
+*.zip
+*.tar.gz
+*.rar
+
+# ========================================
+# DEPENDÊNCIAS - GERENCIADAS POR PACKAGE MANAGERS
+# ========================================
+node_modules/
+bower_components/
+jspm_packages/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
+.venv
+auth/bin/
+auth/lib/
+auth/Scripts/
+auth/Include/
+auth/share/
+
+# ========================================
+# ARQUIVOS DE DADOS E PRODUÇÃO
+# ========================================
+data/
+database/
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+uploads/
+temp/
+tmp/
+cache/
+*.csv
+*.xlsx
+*.xls
+
+# ========================================
+# LOGS E DEBUG
+# ========================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log.*
+
+# ========================================
+# ARQUIVOS DO SISTEMA OPERACIONAL
+# ========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ========================================
+# IDEs E EDITORES
+# ========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ========================================
+# ARQUIVOS TEMPORÁRIOS E CACHE
+# ========================================
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+.cache/
+.npm/
+.eslintcache
+.stylelintcache
+
+# ========================================
+# ELECTRON BUILDER
+# ========================================
+*.spec
+electron-builder.yml.bak
+
+# ========================================
+# OUTROS ARQUIVOS QUE NÃO DEVEM SER VERSIONADOS
+# ========================================
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+coverage/
+.nyc_output/
+*.pid
+*.seed
+*.pid.lock
+
+# ========================================
+# ARQUIVOS DE DESENVOLVIMENTO
+# ========================================
+COMMIT_MESSAGE.txt
+EXEMPLO_*.txt
+test-*.js

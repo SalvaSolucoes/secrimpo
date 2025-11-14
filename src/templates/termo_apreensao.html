@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termo de Apreensão SECRIMPO 4° CPR - PMDF</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        html {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #000;
+            background: white;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .container {
+            width: 100%;
+            height: 100%;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            border: 3px solid #003366;
+            border-radius: 0;
+            box-sizing: border-box;
+            background: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #003366;
+        }
+
+        .logo-container {
+            width: 65px;
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 6px;
+            padding: 5px;
+        }
+
+        .logo-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .header-title {
+            flex: 1;
+            text-align: center;
+            padding: 0 25px;
+        }
+
+        .header-title h1 {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #003366;
+            margin: 0;
+            line-height: 1.3;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .section-title {
+            background: linear-gradient(135deg, #003366 0%, #004080 100%);
+            color: white;
+            padding: 10px 15px;
+            font-size: 11pt;
+            font-weight: bold;
+            margin: 20px 0 15px 0;
+            border-radius: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 4px rgba(0, 51, 102, 0.15);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #003366;
+            font-size: 10pt;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            flex: 1;
+            border: 2px solid #d0d0d0;
+            padding: 8px 12px;
+            font-size: 10pt;
+            border-radius: 5px;
+            background: #fafafa;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #003366;
+            background: white;
+        }
+
+        .form-group textarea {
+            resize: none;
+            min-height: 80px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            border: 2px solid #003366;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        table th {
+            background: linear-gradient(135deg, #e8f0f8 0%, #d4e4f4 100%);
+            border: 1px solid #003366;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 10pt;
+            color: #003366;
+        }
+
+        table td {
+            border: 1px solid #d0d0d0;
+            padding: 10px 12px;
+            background: #fafafa;
+        }
+
+        table td input,
+        table td textarea {
+            width: 100%;
+            border: none;
+            padding: 5px;
+            font-size: 10pt;
+            background: transparent;
+            resize: none;
+        }
+
+        .content-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .footer {
+            margin-top: auto;
+            padding-top: 15px;
+            border-top: 2px solid #d0d0d0;
+            text-align: center;
+            color: #666;
+            font-size: 9pt;
+        }
+
+        .footer-info {
+            margin-bottom: 6px;
+        }
+
+        /* ===== ETIQUETA DE APREENSÃO ===== */
+        
+        /* Label styles */
+        .label-page {
+            page-break-before: always;
+            width: 110mm;
+            height: 95mm;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Container principal da etiqueta */
+        .label-container {
+            width: 110mm;
+            height: 95mm;
+            border: none;
+            background: white;
+            padding: 8px;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            box-sizing: border-box;
+        }
+
+        /* Cabeçalho da etiqueta */
+        .label-header {
+            margin-bottom: 8px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 6px;
+        }
+
+        .label-logo-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Logo PMDF */
+        .logo-pmdf {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .label-logo {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
+        }
+
+        .logo-text {
+            text-align: center;
+        }
+
+        .label-header-text {
+            font-size: 12px;
+            font-weight: bold;
+            color: #000;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        /* Título central */
+        .etiqueta-title {
+            text-align: center;
+            flex: 1;
+            margin: 0 20px;
+        }
+
+        .title-line {
+            font-size: 8px;
+            font-weight: bold;
+            margin-bottom: 1px;
+            color: #000;
+            line-height: 1.1;
+        }
+
+        /* Logo GDF */
+        .logo-gdf {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .gdf-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: #1976d2;
+            padding: 2px 8px;
+            border-radius: 3px;
+        }
+
+        .gdf-subtitle {
+            font-size: 8px;
+            color: #1976d2;
+            font-weight: bold;
+        }
+
+        /* Linhas da etiqueta */
+        .label-row {
+            display: flex;
+            margin-bottom: 0;
+            gap: 0;
+        }
+
+        /* Campos da etiqueta */
+        .label-field {
+            border: 2px solid #000;
+            min-height: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .label-field-half {
+            flex: 1;
+        }
+
+        .label-field-quarter {
+            flex: 0.25;
+        }
+
+        /* Cabeçalho dos campos */
+        .label-field-header {
+            background: #000;
+            color: white;
+            padding: 4px 6px;
+            font-size: 8px;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* Valor dos campos */
+        .label-field-content {
+            padding: 6px 4px;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            min-height: 15px;
+            background: white;
+            color: #000;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Campos específicos (compatibilidade) */
+        .label-field-dark {
+            background: #000;
+            color: white;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .label-field-light {
+            padding: 15px 12px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            background: white;
+            min-height: 20px;
+        }
+
+        .label-col {
+            flex: 1;
+            border-right: 2px solid #000;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .label-col:last-child {
+            border-right: none;
+        }
+
+        .label-proprietario-header {
+            background: #000;
+            color: white;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .label-proprietario-content {
+            background: white;
+            padding: 15px 12px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            min-height: 20px;
+        }
+
+        .label-doc-row {
+            display: flex;
+        }
+
+        .label-doc-header {
+            background: #000;
+            color: white;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            border-right: 2px solid #000;
+            flex: 0 0 120px;
+            text-transform: uppercase;
+        }
+
+        .label-doc-content {
+            background: white;
+            padding: 15px 12px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            flex: 1;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 0;
+            }
+
+            html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .container {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 15px !important;
+                border: 3px solid #003366;
+                border-radius: 0 !important;
+                page-break-inside: avoid;
+                page-break-after: always;
+                box-sizing: border-box !important;
+            }
+
+            input, textarea {
+                border: 1px solid #d0d0d0 !important;
+                background: transparent !important;
+            }
+
+            table td input,
+            table td textarea {
+                border: none !important;
+            }
+
+            .section-title {
+                box-shadow: none;
+            }
+
+            .label-page {
+                page-break-before: always;
+                width: 110mm !important;
+                height: 95mm !important;
+            }
+
+            .label-container {
+                width: 110mm !important;
+                height: 95mm !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-container">
+                <img src="../../assets/PMDF_LetraPreta.png" alt="Logo PMDF">
+            </div>
+            <div class="header-title">
+                <h1>Termo de Apreensão<br>SECRIMPO 4° CPR - PMDF</h1>
+            </div>
+            <div class="logo-container">
+                <img src="../../assets/GDF_logo.jpg" alt="Logo GDF">
+            </div>
+        </div>
+
+        <div class="content-wrapper">
+        <div class="section-title">Dados da Ocorrência</div>
+        
+        <div class="form-row">
+            <div class="form-group" style="flex: 1.5;">
+                <label>Número Gênesis</label>
+                <input type="text" id="numeroGenesis" readonly>
+            </div>
+            <div class="form-group" style="flex: 1.5;">
+                <label>Unidade do Fato</label>
+                <input type="text" id="unidadeFato" readonly>
+            </div>
+            <div class="form-group">
+                <label>Data da Apreensão</label>
+                <input type="text" id="dataApreensao" readonly>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label>Lei Infringida</label>
+                <input type="text" id="leiInfringida" readonly>
+            </div>
+            <div class="form-group">
+                <label>Artigo</label>
+                <input type="text" id="artigo" readonly>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <input type="text" id="status" readonly>
+            </div>
+        </div>
+
+        <div class="section-title">Itens Apreendidos</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 18%;">Espécie</th>
+                    <th style="width: 22%;">Item</th>
+                    <th style="width: 12%;">Quantidade</th>
+                    <th style="width: 48%;">Descrição</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <select id="especie" disabled>
+                            <option value="">Selecione...</option>
+                            <option value="SUBSTÂNCIA">SUBSTÂNCIA</option>
+                            <option value="OBJETO">OBJETO</option>
+                            <option value="SIMULACRO">SIMULACRO</option>
+                            <option value="ARMA BRANCA">ARMA BRANCA</option>
+                        </select>
+                    </td>
+                    <td><input type="text" id="item" readonly></td>
+                    <td><input type="text" id="quantidade" readonly></td>
+                    <td><textarea id="descricaoItem" rows="3" readonly></textarea></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="section-title">Dados do Proprietário</div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label>Nome Completo</label>
+                <input type="text" id="nomeProprietario" readonly>
+            </div>
+            <div class="form-group">
+                <label id="labelDocumentoProprietario">RG/CPF</label>
+                <input type="text" id="documentoProprietario" readonly>
+            </div>
+        </div>
+
+        <div class="section-title">Dados do Policial Condutor</div>
+
+        <div class="form-row">
+            <div class="form-group" style="flex: 2;">
+                <label>Nome Completo</label>
+                <input type="text" id="nomePolicial" readonly>
+            </div>
+            <div class="form-group">
+                <label>Matrícula</label>
+                <input type="text" id="matriculaPolicial" readonly>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Graduação</label>
+                <input type="text" id="graduacaoPolicial" readonly>
+            </div>
+            <div class="form-group">
+                <label>Unidade</label>
+                <input type="text" id="unidadePolicial" readonly>
+            </div>
+        </div>
+        </div>
+
+        <div class="footer">
+            <div class="footer-info">
+                <strong>SECRIMPO - Seção de Crimes de Menor Potencial Ofensivo</strong>
+            </div>
+            <div class="footer-info">
+                4° Comando de Policiamento Regional - Polícia Militar do Distrito Federal
+            </div>
+            <div class="footer-info" id="dataGeracao"></div>
+        </div>
+    </div>
+
+    <!-- Label Page (Page 2) -->
+    <div class="label-page">
+        <div class="label-container">
+            <!-- Header with logos -->
+            <div class="label-header">
+                <div class="label-logo-row">
+                    <div class="logo-pmdf">
+                        <img src="../../assets/PMDF_LetraPreta.png" alt="Logo PMDF" class="label-logo">
+                    </div>
+                    <div class="etiqueta-title">
+                        <div class="title-line">GOVERNO DO DISTRITO FEDERAL</div>
+                        <div class="title-line">POLÍCIA MILITAR DO DISTRITO FEDERAL</div>
+                        <div class="title-line">4º COMANDO DE POLICIAMENTO REGIONAL</div>
+                    </div>
+                    <div class="logo-gdf">
+                        <img src="../../assets/GDF_logo.jpg" alt="Logo GDF" class="label-logo">
+                    </div>
+                </div>
+            </div>
+
+            <!-- NÚMERO GENESIS e DATA DA APREENSÃO -->
+            <div class="label-row">
+                <div class="label-col">
+                    <div class="label-field-header">NÚMERO GÊNESIS</div>
+                    <div class="label-field-content" id="labelNumeroGenesis"></div>
+                </div>
+                <div class="label-col">
+                    <div class="label-field-header">DATA DA APREENSÃO</div>
+                    <div class="label-field-content" id="labelDataApreensao"></div>
+                </div>
+            </div>
+
+            <!-- ITEM APREENDIDO e NOME DO ITEM -->
+            <div class="label-row">
+                <div class="label-col">
+                    <div class="label-field-header">ITEM APREENDIDO</div>
+                    <div class="label-field-content" id="labelItemApreendido"></div>
+                </div>
+                <div class="label-col">
+                    <div class="label-field-header">NOME DO ITEM</div>
+                    <div class="label-field-content" id="labelNomeItem"></div>
+                </div>
+            </div>
+
+            <!-- QUANTIDADE, VALOR, PESO, N. DE SÉRIE -->
+            <div class="label-row">
+                <div class="label-col">
+                    <div class="label-field-header">QUANTIDADE</div>
+                    <div class="label-field-content" id="labelQuantidade"></div>
+                </div>
+                <div class="label-col">
+                    <div class="label-field-header">VALOR</div>
+                    <div class="label-field-content" id="labelValor"></div>
+                </div>
+                <div class="label-col">
+                    <div class="label-field-header">PESO</div>
+                    <div class="label-field-content" id="labelPeso"></div>
+                </div>
+                <div class="label-col">
+                    <div class="label-field-header">N. DE SÉRIE</div>
+                    <div class="label-field-content" id="labelNumeroSerie"></div>
+                </div>
+            </div>
+
+            <!-- PROPRIETÁRIO -->
+            <div class="label-row">
+                <div class="label-col" style="flex: 1;">
+                    <div class="label-field-header">PROPRIETÁRIO (A) (OS)</div>
+                    <div class="label-field-content" id="labelProprietario"></div>
+                </div>
+            </div>
+
+            <!-- CPF/RG -->
+            <div class="label-row">
+                <div class="label-col" style="flex: 1;">
+                    <div class="label-field-header">CPF/RG</div>
+                    <div class="label-field-content" id="labelDocumento"></div>
+                </div>
+            </div>
+
+            <!-- Linha tracejada para recorte -->
+            <div style="border-top: 2px dashed #666; margin: 6px 0; position: relative;">
+                <div style="position: absolute; left: 50%; top: -8px; transform: translateX(-50%); background: white; padding: 0 6px; font-size: 7px; color: #666; font-weight: bold;">✂ RECORTE AQUI ✂</div>
+            </div>
+
+            <!-- Nº PJE -->
+            <div class="label-row">
+                <div class="label-col" style="flex: 1;">
+                    <div class="label-field-header">Nº PJE</div>
+                    <div class="label-field-content" id="labelNumeroPje"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // This script will be populated by the main process
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.occurrenceData) {
+                populateForm(window.occurrenceData);
+            }
+        });
+
+        function populateForm(data) {
+            // Populate main form (Page 1)
+            document.getElementById('numeroGenesis').value = data.ocorrencia.numeroGenesis || '';
+            document.getElementById('unidadeFato').value = data.ocorrencia.unidade || '';
+            document.getElementById('dataApreensao').value = formatDate(data.ocorrencia.dataApreensao) || '';
+            document.getElementById('leiInfringida').value = data.ocorrencia.leiInfrigida || '';
+            document.getElementById('artigo').value = data.ocorrencia.artigo || '';
+            document.getElementById('status').value = data.ocorrencia.status || '';
+            
+            document.getElementById('especie').value = data.itemApreendido.especie || '';
+            document.getElementById('item').value = data.itemApreendido.item || '';
+            document.getElementById('quantidade').value = data.itemApreendido.quantidade || '';
+            document.getElementById('descricaoItem').value = data.itemApreendido.descricao || '';
+            
+            document.getElementById('nomeProprietario').value = data.proprietario.nome || '';
+            
+            // Identificar tipo de documento e atualizar label
+            const tipoDoc = data.proprietario.tipoDocumento || 'RG/CPF';
+            const numeroDoc = data.proprietario.numeroDocumento || '';
+            document.getElementById('labelDocumentoProprietario').textContent = tipoDoc;
+            document.getElementById('documentoProprietario').value = numeroDoc;
+            
+            document.getElementById('nomePolicial').value = data.policial.nome || '';
+            document.getElementById('matriculaPolicial').value = data.policial.matricula || '';
+            document.getElementById('graduacaoPolicial').value = data.policial.graduacao || '';
+            document.getElementById('unidadePolicial').value = data.policial.unidade || '';
+
+            // Populate label fields (Page 2)
+            document.getElementById('labelNumeroGenesis').textContent = data.ocorrencia.numeroGenesis || '';
+            document.getElementById('labelDataApreensao').textContent = formatDate(data.ocorrencia.dataApreensao) || '';
+            document.getElementById('labelItemApreendido').textContent = data.itemApreendido.especie || '';
+            document.getElementById('labelNomeItem').textContent = data.itemApreendido.item || '';
+            document.getElementById('labelQuantidade').textContent = data.itemApreendido.quantidade || '';
+            document.getElementById('labelValor').textContent = '-';
+            document.getElementById('labelPeso').textContent = data.itemApreendido.quantidade || '';
+            document.getElementById('labelNumeroSerie').textContent = '-';
+            document.getElementById('labelProprietario').textContent = (data.proprietario.nome || '').toUpperCase();
+            document.getElementById('labelDocumento').textContent = numeroDoc;
+            
+            // Preencher Nº PJE (mostrar "-" se vazio ou igual a "-")
+            const numeroPje = data.ocorrencia.numeroPje || '-';
+            document.getElementById('labelNumeroPje').textContent = numeroPje === '-' ? '-' : numeroPje;
+
+            // Adicionar data de geração
+            const now = new Date();
+            const dataHora = now.toLocaleString('pt-BR', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            document.getElementById('dataGeracao').textContent = `Documento gerado em: ${dataHora}`;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SECRIMPO PMDF - LOGIN</title>
+    <link rel="stylesheet" href="../styles/login.css">
+</head>
+<body>
+    <!-- Notificação de Atualização -->
+    <div id="updateNotification" class="update-notification" style="display: none;">
+        <div class="update-content">
+            <div class="update-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z" fill="currentColor"/>
+                </svg>
+            </div>
+            <div class="update-text">
+                <div class="update-title">Nova versão disponível!</div>
+                <div class="update-version">Versão <span id="updateVersion"></span> está pronta para instalação</div>
+            </div>
+            <div class="update-actions">
+                <button id="updateNowBtn" class="btn-update-now">Atualizar Agora</button>
+                <button id="updateLaterBtn" class="btn-update-later">Depois</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="login-container">
+        <div class="login-box">
+            <div class="logo-section">
+                <div class="logo-container">
+                    <div class="logo-circle">
+                        <img src="../../assets/PMDF_LetraPreta.png" alt="Logo PMDF" class="logo-image">
+                    </div>
+                    <div class="logo-circle">
+                        <img src="../../assets/GDF_logo.jpg" alt="Logo GDF" class="logo-image">
+                    </div>
+                </div>
+                <h1>Painel Corporativo</h1>
+                <p class="subtitle">Sistema de Registro de Ocorrências</p>
+            </div>
+
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="username">Usuário</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Digite seu usuário"
+                        required
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Digite sua senha"
+                        required
+                    >
+                </div>
+
+                <div class="form-group-checkbox">
+                    <label class="checkbox-container">
+                        <input type="checkbox" id="rememberUser" name="rememberUser">
+                        <span class="checkmark"></span>
+                        <span class="checkbox-label">Lembrar usuário</span>
+                    </label>
+                </div>
+
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+                <button type="submit" class="btn-login" id="loginBtn">
+                    <span class="btn-text">Entrar</span>
+                    <span class="btn-loader" style="display: none;">Autenticando...</span>
+                </button>
+            </form>
+
+            <div class="footer-info">
+                <p class="version">v1.0</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="../scripts/login.js"></script>
+</body>
+</html>

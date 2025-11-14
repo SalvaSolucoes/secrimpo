@@ -1,0 +1,387 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, rgba(7, 29, 73, 0.65) 0%, rgba(10, 42, 107, 0.65) 100%), 
+                url('../../assets/Fundo_Login.png') center/cover no-repeat fixed;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 450px;
+    padding: 20px;
+}
+
+.login-box {
+    background: white;
+    border-radius: 20px;
+    padding: 50px 40px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.logo-section {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.logo-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.logo-circle {
+    width: 120px;
+    height: 120px;
+    background: transparent;
+    border-radius: 50%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+}
+
+.logo-text {
+    color: #fac709;
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.logo-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.logo-section h1 {
+    color: #071d49;
+    font-size: 28px;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.subtitle {
+    color: #666;
+    font-size: 14px;
+}
+
+.login-form {
+    margin-top: 30px;
+}
+
+.form-group {
+    margin-bottom: 25px;
+}
+
+.form-group label {
+    display: block;
+    color: #071d49;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 15px;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #fac709;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(250, 199, 9, 0.1);
+}
+
+/* Checkbox "Lembrar usuário" */
+.form-group-checkbox {
+    margin-bottom: 18px;
+    margin-top: -18px;
+    text-align: right;
+}
+
+.checkbox-container {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-left: 24px;
+    transition: all 0.2s ease;
+}
+
+.checkbox-container:hover {
+    opacity: 0.8;
+}
+
+.checkbox-container input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    left: 0;
+    height: 16px;
+    width: 16px;
+    background-color: #ffffff;
+    border: 1.5px solid #d0d0d0;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+    border-color: #279b4d;
+    box-shadow: 0 0 0 2px rgba(39, 155, 77, 0.1);
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background-color: #279b4d;
+    border-color: #279b4d;
+    box-shadow: 0 2px 4px rgba(39, 155, 77, 0.2);
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-container .checkmark:after {
+    left: 5px;
+    top: 2px;
+    width: 3px;
+    height: 7px;
+    border: solid white;
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-label {
+    color: #666;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.2px;
+}
+
+.error-message {
+    background: #fee;
+    color: #c33;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    border-left: 4px solid #c33;
+    animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
+.btn-login {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #279b4d 0%, #1f8040 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(39, 155, 77, 0.3);
+}
+
+.btn-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(39, 155, 77, 0.4);
+}
+
+.btn-login:active {
+    transform: translateY(0);
+}
+
+.btn-login:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-loader {
+    display: inline-block;
+}
+
+.footer-info {
+    margin-top: 30px;
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+}
+
+.footer-info p {
+    margin: 5px 0;
+}
+
+.version {
+    color: #999;
+    font-size: 12px;
+}
+
+/* Notificação de Atualização */
+.update-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 8px 32px rgba(76, 175, 80, 0.3);
+    z-index: 1000;
+    max-width: 400px;
+    animation: slideInFromRight 0.5s ease-out;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes slideInFromRight {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.update-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.update-icon {
+    color: #fff;
+    opacity: 0.9;
+    flex-shrink: 0;
+}
+
+.update-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.update-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+    line-height: 1.2;
+}
+
+.update-version {
+    font-size: 12px;
+    opacity: 0.9;
+    line-height: 1.3;
+}
+
+.update-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.btn-update-now,
+.btn-update-later {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-update-now {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-update-now:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-update-later {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.btn-update-later:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Responsividade para a notificação */
+@media (max-width: 768px) {
+    .update-notification {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    .update-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .update-actions {
+        align-self: stretch;
+        justify-content: flex-end;
+    }
+}

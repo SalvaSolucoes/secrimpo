@@ -1,0 +1,6 @@
+python-dotenv>=1.0.0
+requests>=2.31.0
+pywin32>=311
+qrcode>=7.4.2
+Pillow>=10.0.0
+discord-interactions>=0.4.0
