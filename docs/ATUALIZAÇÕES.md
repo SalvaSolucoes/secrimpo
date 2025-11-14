@@ -7,7 +7,6 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
-<<<<<<< HEAD
 ## [0.3.0] - 14/11/2025
 
 **Atualização - Sistema de Suporte Integrado**
