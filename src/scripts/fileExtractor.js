@@ -216,18 +216,23 @@ function extractFieldsFromText(text) {
 function mapFieldsToForm(extractedFields) {
     const formData = {};
     
+    // Função auxiliar para converter strings para maiúsculas
+    function toUpperCase(value) {
+        return typeof value === 'string' ? value.toUpperCase() : value;
+    }
+    
     // Mapear CPF/RG
     if (extractedFields.cpf) {
         formData.tipoDocumento = 'CPF';
-        formData.numeroDocumento = extractedFields.cpf;
+        formData.numeroDocumento = toUpperCase(extractedFields.cpf);
     } else if (extractedFields.rg) {
         formData.tipoDocumento = 'RG';
-        formData.numeroDocumento = extractedFields.rg;
+        formData.numeroDocumento = toUpperCase(extractedFields.rg);
     }
     
-    // Mapear outros campos
+    // Mapear outros campos, convertendo para maiúsculas
     if (extractedFields.nome) {
-        formData.nomeProprietario = extractedFields.nome;
+        formData.nomeProprietario = toUpperCase(extractedFields.nome);
     }
     
     if (extractedFields.dataApreensao) {
@@ -235,19 +240,19 @@ function mapFieldsToForm(extractedFields) {
     }
     
     if (extractedFields.numeroGenesis) {
-        formData.numeroGenesis = extractedFields.numeroGenesis;
+        formData.numeroGenesis = toUpperCase(extractedFields.numeroGenesis);
     }
     
     if (extractedFields.matricula) {
-        formData.matricula = extractedFields.matricula;
+        formData.matricula = toUpperCase(extractedFields.matricula);
     }
     
     if (extractedFields.artigo) {
-        formData.artigo = extractedFields.artigo;
+        formData.artigo = toUpperCase(extractedFields.artigo);
     }
     
     if (extractedFields.quantidade) {
-        formData.quantidade = extractedFields.quantidade;
+        formData.quantidade = toUpperCase(extractedFields.quantidade);
     }
     
     if (extractedFields.especie) {

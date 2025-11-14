@@ -205,8 +205,8 @@
         /* Label styles */
         .label-page {
             page-break-before: always;
-            width: 110mm;
-            height: 95mm;
+            width: 110mm; /* 11cm */
+            height: 95mm; /* 9,5cm */
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -214,11 +214,11 @@
 
         /* Container principal da etiqueta */
         .label-container {
-            width: 110mm;
-            height: 95mm;
-            border: none;
+            width: 110mm; /* 11cm */
+            height: 95mm; /* 9,5cm */
+            border: none; /* Removida borda externa */
             background: white;
-            padding: 8px;
+            padding: 15px;
             margin: 0;
             font-family: Arial, sans-serif;
             box-sizing: border-box;
@@ -226,9 +226,9 @@
 
         /* Cabeçalho da etiqueta */
         .label-header {
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             border-bottom: 2px solid #000;
-            padding-bottom: 6px;
+            padding-bottom: 8px;
         }
 
         .label-logo-row {
@@ -245,8 +245,8 @@
         }
 
         .label-logo {
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             object-fit: contain;
         }
 
@@ -255,7 +255,7 @@
         }
 
         .label-header-text {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
             color: #000;
             margin: 0;
@@ -266,11 +266,11 @@
         .etiqueta-title {
             text-align: center;
             flex: 1;
-            margin: 0 20px;
+            margin: 0 10px;
         }
 
         .title-line {
-            font-size: 8px;
+            font-size: 11px;
             font-weight: bold;
             margin-bottom: 1px;
             color: #000;
@@ -310,7 +310,7 @@
         /* Campos da etiqueta */
         .label-field {
             border: 2px solid #000;
-            min-height: 30px;
+            min-height: 40px;
             display: flex;
             flex-direction: column;
         }
@@ -327,8 +327,8 @@
         .label-field-header {
             background: #000;
             color: white;
-            padding: 4px 6px;
-            font-size: 8px;
+            padding: 5px 8px;
+            font-size: 10px;
             font-weight: bold;
             text-align: center;
             text-transform: uppercase;
@@ -337,8 +337,8 @@
 
         /* Valor dos campos */
         .label-field-content {
-            padding: 6px 4px;
-            font-size: 10px;
+            padding: 8px 8px;
+            font-size: 13px;
             font-weight: bold;
             text-align: center;
             min-height: 15px;
@@ -354,20 +354,20 @@
         .label-field-dark {
             background: #000;
             color: white;
-            padding: 8px 12px;
-            font-size: 12px;
+            padding: 5px 8px;
+            font-size: 10px;
             font-weight: bold;
             text-align: center;
             text-transform: uppercase;
         }
 
         .label-field-light {
-            padding: 15px 12px;
-            font-size: 16px;
+            padding: 8px 8px;
+            font-size: 13px;
             font-weight: bold;
             text-align: center;
             background: white;
-            min-height: 20px;
+            min-height: 15px;
         }
 
         .label-col {
@@ -384,8 +384,8 @@
         .label-proprietario-header {
             background: #000;
             color: white;
-            padding: 8px 12px;
-            font-size: 12px;
+            padding: 5px 8px;
+            font-size: 10px;
             font-weight: bold;
             text-align: center;
             text-transform: uppercase;
@@ -393,11 +393,11 @@
 
         .label-proprietario-content {
             background: white;
-            padding: 15px 12px;
-            font-size: 16px;
+            padding: 8px 8px;
+            font-size: 13px;
             font-weight: bold;
             text-align: center;
-            min-height: 20px;
+            min-height: 15px;
         }
 
         .label-doc-row {
@@ -407,8 +407,8 @@
         .label-doc-header {
             background: #000;
             color: white;
-            padding: 8px 12px;
-            font-size: 12px;
+            padding: 5px 8px;
+            font-size: 10px;
             font-weight: bold;
             text-align: center;
             border-right: 2px solid #000;
@@ -416,13 +416,26 @@
             text-transform: uppercase;
         }
 
-        .label-doc-content {
-            background: white;
-            padding: 15px 12px;
-            font-size: 16px;
-            font-weight: bold;
+        /* Linha tracejada para corte */
+        .cut-line {
+            border-top: 2px dashed #000;
+            margin: 6px 0;
+            width: 100%;
             text-align: center;
-            flex: 1;
+            position: relative;
+        }
+
+        .cut-line::after {
+            content: "CORTAR AQUI";
+            position: absolute;
+            top: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 0 4px;
+            font-size: 7px;
+            font-weight: bold;
+            color: #000;
         }
 
         @media print {
@@ -466,13 +479,13 @@
 
             .label-page {
                 page-break-before: always;
-                width: 110mm !important;
-                height: 95mm !important;
+                width: 110mm !important; /* 11cm */
+                height: 95mm !important; /* 9,5cm */
             }
 
             .label-container {
-                width: 110mm !important;
-                height: 95mm !important;
+                width: 110mm !important; /* 11cm */
+                height: 95mm !important; /* 9,5cm */
             }
         }
     </style>
@@ -682,10 +695,8 @@
                 </div>
             </div>
 
-            <!-- Linha tracejada para recorte -->
-            <div style="border-top: 2px dashed #666; margin: 6px 0; position: relative;">
-                <div style="position: absolute; left: 50%; top: -8px; transform: translateX(-50%); background: white; padding: 0 6px; font-size: 7px; color: #666; font-weight: bold;">✂ RECORTE AQUI ✂</div>
-            </div>
+            <!-- Linha tracejada para corte -->
+            <div class="cut-line"></div>
 
             <!-- Nº PJE -->
             <div class="label-row">
@@ -744,9 +755,9 @@
             document.getElementById('labelProprietario').textContent = (data.proprietario.nome || '').toUpperCase();
             document.getElementById('labelDocumento').textContent = numeroDoc;
             
-            // Preencher Nº PJE (mostrar "-" se vazio ou igual a "-")
-            const numeroPje = data.ocorrencia.numeroPje || '-';
-            document.getElementById('labelNumeroPje').textContent = numeroPje === '-' ? '-' : numeroPje;
+            // Nº PJE - mostrar valor ou "-" se vazio
+            const numeroPje = data.ocorrencia.numeroPje || '';
+            document.getElementById('labelNumeroPje').textContent = numeroPje.trim() !== '' ? numeroPje : '-';
 
             // Adicionar data de geração
             const now = new Date();

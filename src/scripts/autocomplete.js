@@ -227,8 +227,8 @@ class AutocompleteLeis {
         const sigla = itemElement.dataset.sigla;
         const nome = itemElement.dataset.nome;
         
-        // Atualizar o input com a sigla selecionada
-        this.input.value = sigla;
+        // Atualizar o input com o nome completo da lei selecionada
+        this.input.value = nome;
         
         // Armazenar a lei selecionada
         this.selectedLei = {

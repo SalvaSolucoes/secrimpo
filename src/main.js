@@ -1,45 +1,16 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const XLSX = require('xlsx');
 const fs = require('fs');
-
-// Configurar variáveis de ambiente para UTF-8 no Windows
-if (process.platform === 'win32') {
-  process.env.PYTHONIOENCODING = 'utf-8';
-  process.env.LANG = 'pt_BR.UTF-8';
-}
-
-// Função para logs organizados
-function logInfo(message) {
-  const timestamp = new Date().toLocaleTimeString('pt-BR');
-  console.log(`[${timestamp}] ${message}`);
-}
-
-function logError(message, error = null) {
-  const timestamp = new Date().toLocaleTimeString('pt-BR');
-  console.error(`[${timestamp}] ${message}${error ? ': ' + error : ''}`);
-}
-
-// Banner de inicialização
-function showStartupBanner() {
-  console.clear();
-  console.log('='.repeat(60));
-  console.log('              SECRIMPO PMDF - SISTEMA INICIADO');
-  console.log('='.repeat(60));
-  logInfo('Inicializando aplicacao...');
-}
-
-// Sistema de atualizações
-const AutoUpdater = require('./updater/updater');
+const updater = require('./utils/updater');
+const packageJson = require('../package.json');
 
 // Configurar pastas de salvamento
 const BASE_DIR = 'C:\\SECRIMPO';
 const FOLDERS = {
   ocorrencias: path.join(BASE_DIR, 'Ocorrencias'),
   exportacoes: path.join(BASE_DIR, 'Exportacao'),
-  exportacoesOcorrencias: path.join(BASE_DIR, 'Exportacao', 'Ocorrencias'),
-  exportacoesTco: path.join(BASE_DIR, 'Exportacao', 'Tco'),
   termos: path.join(BASE_DIR, 'Termos')
 };
 
@@ -73,7 +44,6 @@ app.commandLine.appendSwitch('disable-gpu-compositing');
 app.commandLine.appendSwitch('disable-software-rasterizer');
 
 let mainWindow;
-let updater;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -104,19 +74,107 @@ function createWindow() {
   mainWindow.on('closed', function () {
     mainWindow = null;
   });
+  
+  // Quando a janela carregar o dashboard, verificar atualizações novamente
+  mainWindow.webContents.on('did-finish-load', () => {
+    const url = mainWindow.webContents.getURL();
+    if (url && url.includes('dashboard.html')) {
+      // Aguardar um pouco para garantir que o dashboard está pronto
+      setTimeout(() => {
+        checkForUpdates();
+      }, 2000);
+    }
+  });
 }
 
 app.whenReady().then(() => {
-  showStartupBanner();
   ensureFolders();
   createWindow();
   
-  // Inicializar sistema de atualizações
-  initializeUpdater();
+  // Verificar atualizações após um pequeno delay para não bloquear a inicialização
+  setTimeout(() => {
+    checkForUpdates();
+  }, 3000); // 3 segundos após a aplicação abrir
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+/**
+ * Verifica atualizações do GitHub
+ */
+async function checkForUpdates() {
+  try {
+    const currentVersion = packageJson.version;
+    const updateInfo = await updater.checkForUpdate(currentVersion);
+    
+    if (updateInfo && updateInfo.available) {
+      console.log('Atualização disponível:', updateInfo);
+      // Enviar notificação para a janela principal quando estiver pronta
+      sendUpdateNotification(updateInfo);
+    } else {
+      console.log('Aplicação está atualizada ou não há atualizações disponíveis.');
+    }
+  } catch (error) {
+    console.error('Erro ao verificar atualizações:', error);
+  }
+}
+
+/**
+ * Envia notificação de atualização para a janela
+ */
+function sendUpdateNotification(updateInfo) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    // Verificar se a janela está carregada
+    if (mainWindow.webContents.isLoading()) {
+      // Se ainda estiver carregando, aguardar
+      mainWindow.webContents.once('did-finish-load', () => {
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-available', updateInfo);
+          }
+        }, 1000);
+      });
+    } else {
+      // Se já estiver carregada, enviar imediatamente
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update-available', updateInfo);
+        }
+      }, 1000);
+    }
+  } else {
+    // Se a janela ainda não estiver pronta, aguardar
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-available', updateInfo);
+      }
+    }, 5000);
+  }
+}
+
+// IPC Handler para verificar atualizações manualmente
+ipcMain.handle('check-updates-manual', async () => {
+  try {
+    const currentVersion = packageJson.version;
+    const updateInfo = await updater.checkForUpdate(currentVersion);
+    return updateInfo;
+  } catch (error) {
+    console.error('Erro ao verificar atualizações manualmente:', error);
+    return { error: error.message };
+  }
+});
+
+// IPC Handler para abrir URL externa (download de atualização)
+ipcMain.handle('open-external-url', async (event, url) => {
+  try {
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao abrir URL:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 app.on('window-all-closed', function () {
@@ -293,6 +351,12 @@ function normalizeCapitalization(text) {
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 }
 
+// Função para converter strings para maiúsculas
+function toUpperCase(value) {
+  if (!value || typeof value !== 'string') return value;
+  return value.trim().toUpperCase();
+}
+
 // IPC Handler para salvar ocorrência
 ipcMain.handle('save-occurrence', async (event, data) => {
   try {
@@ -310,151 +374,133 @@ ipcMain.handle('save-occurrence', async (event, data) => {
     console.log('✓ JSON salvo em:', jsonFilepath);
     
     // Enviar para Google Sheets (se configurado)
-    const GOOGLE_SHEETS_URL = "CREDENCIAL_REMOVIDA"; // URL do Google Apps Script
+    const GOOGLE_SHEETS_URL = "Credencial Removida"; // Cole sua URL do Google Apps Script aqui
     
     if (GOOGLE_SHEETS_URL) {
       try {
         const https = require('https');
         const url = require('url');
         
+        // Adicionar um pequeno delay para evitar "muitas solicitações"
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Preparar dados para envio (formato array para Google Apps Script)
         // Envia apenas a linha de dados (sem cabeçalhos, pois já existem na planilha)
+        // Converter todos os campos de texto para maiúsculas
         const sheetData = {
           values: [
             new Date().toLocaleString('pt-BR'),
-            data.ocorrencia.numeroGenesis,
-            data.ocorrencia.unidade,
+            toUpperCase(data.ocorrencia.numeroGenesis),
+            data.ocorrencia.unidade || '', // Select mantém valor original
             isoToBrDate(data.ocorrencia.dataApreensao),
-            data.ocorrencia.leiInfrigida,
-            data.ocorrencia.artigo,
-            data.ocorrencia.status,
-            data.ocorrencia.numeroPje || '-',
-            normalizeCapitalization(data.itemApreendido.especie),
-            normalizeCapitalization(data.itemApreendido.item),
-            data.itemApreendido.quantidade,
-            data.itemApreendido.descricao,
-            data.proprietario.nome,
-            data.proprietario.tipoDocumento,
-            data.proprietario.numeroDocumento,
-            data.policial.nome,
-            data.policial.matricula,
-            data.policial.graduacao,
-            data.policial.unidade,
-            data.metadata.registradoPor
+            toUpperCase(data.ocorrencia.leiInfrigida || ''),
+            toUpperCase(data.ocorrencia.artigo || ''),
+            data.ocorrencia.status || '', // Select mantém valor original
+            toUpperCase(data.ocorrencia.numeroPje || ''),
+            data.itemApreendido.especie || '', // Select mantém valor original
+            toUpperCase(data.itemApreendido.item || ''),
+            toUpperCase(data.itemApreendido.quantidade || ''),
+            toUpperCase(data.itemApreendido.descricao || ''),
+            toUpperCase(data.proprietario.nome || ''),
+            data.proprietario.tipoDocumento || '', // Select mantém valor original
+            toUpperCase(data.proprietario.numeroDocumento || ''),
+            toUpperCase(data.policial.nome || ''),
+            toUpperCase(data.policial.matricula || ''),
+            data.policial.graduacao || '', // Select mantém valor original
+            toUpperCase(data.policial.unidade || ''),
+            data.metadata.registradoPor || '' // Username mantém valor original
           ]
         };
         
-        // Preparar dados TCO - TODAS as ocorrências vão para TCO
-        const tcoData = {
-          action: 'add_tco',
-          rap: data.ocorrencia.numeroGenesis, // RAP = GENESIS
-          envolvido: data.proprietario.nome, // ENVOLVIDO = Nome do proprietário
-          ilicito: normalizeCapitalization(data.itemApreendido.especie), // ILÍCITO = Espécie
-          dataRegistro: new Date().toLocaleString('pt-BR'),
-          // Dados adicionais para referência
-          unidade: data.ocorrencia.unidade,
-          dataApreensao: isoToBrDate(data.ocorrencia.dataApreensao),
-          item: normalizeCapitalization(data.itemApreendido.item),
-          quantidade: data.itemApreendido.quantidade,
-          policial: data.policial.nome,
-          matricula: data.policial.matricula
-        };
-        
+        console.log('Enviando dados para Google Sheets:', JSON.stringify(sheetData, null, 2));
         const postData = JSON.stringify(sheetData);
-        const parsedUrl = url.parse(GOOGLE_SHEETS_URL);
         
-        const options = {
-          hostname: parsedUrl.hostname,
-          path: parsedUrl.path,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(postData)
-          }
+        // Função recursiva para seguir redirecionamentos em POST
+        const postWithRedirects = (targetUrl, payload, maxRedirects = 5) => {
+          return new Promise((resolve, reject) => {
+            if (maxRedirects === 0) {
+              reject(new Error('Muitos redirecionamentos'));
+              return;
+            }
+            
+            const parsedUrl = url.parse(targetUrl);
+            const options = {
+              hostname: parsedUrl.hostname,
+              path: parsedUrl.path,
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(payload)
+              }
+            };
+            
+            const req = https.request(options, (res) => {
+              // Seguir redirecionamentos
+              if (res.statusCode === 302 || res.statusCode === 301 || res.statusCode === 307 || res.statusCode === 308) {
+                const redirectUrl = res.headers.location;
+                console.log(`Redirecionando POST para: ${redirectUrl}`);
+                
+                // Para redirecionamentos 307 e 308, manter POST
+                // Para 301 e 302, usar GET (Google Apps Script geralmente redireciona para GET)
+                if (res.statusCode === 307 || res.statusCode === 308) {
+                  postWithRedirects(redirectUrl, payload, maxRedirects - 1).then(resolve).catch(reject);
+                } else {
+                  // Converter para GET (Google Apps Script faz isso)
+                  https.get(redirectUrl, (getRes) => {
+                    let responseData = '';
+                    getRes.on('data', (chunk) => { responseData += chunk; });
+                    getRes.on('end', () => {
+                      resolve(responseData);
+                    });
+                  }).on('error', reject);
+                }
+                return;
+              }
+              
+              let responseData = '';
+              res.on('data', (chunk) => { responseData += chunk; });
+              res.on('end', () => {
+                resolve(responseData);
+              });
+            });
+            
+            req.on('error', reject);
+            req.write(payload);
+            req.end();
+          });
         };
         
-        await new Promise((resolve, reject) => {
-          const req = https.request(options, (res) => {
-            // Seguir redirecionamentos (302, 301, 307)
-            if (res.statusCode === 302 || res.statusCode === 301 || res.statusCode === 307) {
-              const redirectUrl = res.headers.location;
-              console.log('Seguindo redirecionamento para Google Sheets...');
-              
-              https.get(redirectUrl, (redirectRes) => {
-                let responseData = '';
-                redirectRes.on('data', (chunk) => { responseData += chunk; });
-                redirectRes.on('end', () => {
-                  console.log('Dados enviados para Google Sheets:', responseData);
-                  resolve();
-                });
-              }).on('error', (error) => {
-                console.error('Erro no redirect para Google Sheets:', error);
-                reject(error);
-              });
-              
-              return;
+        try {
+          const responseData = await postWithRedirects(GOOGLE_SHEETS_URL, postData);
+          console.log('Resposta do Google Sheets (primeiros 500 caracteres):', responseData.substring(0, 500));
+          
+          // Verificar se a resposta é JSON válido
+          try {
+            const result = JSON.parse(responseData);
+            if (result.success) {
+              console.log('✓ Dados enviados com sucesso para Google Sheets');
+            } else {
+              console.warn('⚠ Resposta do Google Sheets indica falha:', result.message || result.error);
             }
-            
-            let responseData = '';
-            res.on('data', (chunk) => { responseData += chunk; });
-            res.on('end', () => {
-              console.log('Dados enviados para Google Sheets:', responseData);
-              resolve();
-            });
-          });
-          
-          req.on('error', (error) => {
-            console.error('Erro ao enviar para Google Sheets:', error);
-            reject(error);
-          });
-          
-          req.write(postData);
-          req.end();
-        });
-        
-        // Enviar dados TCO para planilha
-        const tcoPostData = JSON.stringify(tcoData);
-        
-        await new Promise((resolve, reject) => {
-          const tcoReq = https.request(options, (res) => {
-            // Seguir redirecionamentos (302, 301, 307)
-            if (res.statusCode === 302 || res.statusCode === 301 || res.statusCode === 307) {
-              const redirectUrl = res.headers.location;
-              console.log('Seguindo redirecionamento TCO para Google Sheets...');
-              
-              https.get(redirectUrl, (redirectRes) => {
-                let responseData = '';
-                redirectRes.on('data', (chunk) => { responseData += chunk; });
-                redirectRes.on('end', () => {
-                  console.log('Dados TCO enviados para Google Sheets:', responseData);
-                  resolve();
-                });
-              }).on('error', (error) => {
-                console.error('Erro no redirect TCO para Google Sheets:', error);
-                reject(error);
-              });
-              
-              return;
+          } catch (parseError) {
+            // Se não for JSON, verificar se é erro de "muitas solicitações"
+            if (responseData.includes('muitas solicitações') || responseData.includes('indisponível')) {
+              console.warn('⚠ Google Sheets temporariamente indisponível (muitas solicitações). Os dados foram salvos localmente.');
+              console.warn('   Tente novamente em alguns instantes ou verifique manualmente na planilha.');
+            } else if (responseData.includes('success') || responseData.includes('<!DOCTYPE')) {
+              // Pode ser uma página de sucesso do Google
+              console.log('✓ Dados enviados para Google Sheets (resposta não-JSON, mas provavelmente sucesso)');
+            } else {
+              console.warn('⚠ Resposta inesperada do Google Sheets:', responseData.substring(0, 200));
             }
-            
-            let responseData = '';
-            res.on('data', (chunk) => { responseData += chunk; });
-            res.on('end', () => {
-              console.log('Dados TCO enviados para Google Sheets:', responseData);
-              resolve();
-            });
-          });
-          
-          tcoReq.on('error', (error) => {
-            console.error('Erro ao enviar TCO para Google Sheets:', error);
-            reject(error);
-          });
-          
-          tcoReq.write(tcoPostData);
-          tcoReq.end();
-        });
+          }
+        } catch (postError) {
+          console.error('Erro ao enviar POST para Google Sheets:', postError.message);
+          console.warn('⚠ Os dados foram salvos localmente, mas não foi possível enviar para o Google Sheets.');
+          console.warn('   Verifique sua conexão com a internet e tente novamente.');
+        }
         
-        console.log('✓ Dados de Ocorrência e TCO enviados para planilha online');
+        console.log('✓ Dados salvos localmente');
       } catch (sheetError) {
         console.error('Erro ao enviar para planilha:', sheetError);
         // Continua mesmo se falhar o envio para planilha
@@ -488,7 +534,7 @@ ipcMain.on('load-dashboard', () => {
 // IPC Handler para obter todas as ocorrências do Google Sheets
 ipcMain.handle('get-occurrences', async (event) => {
   try {
-    const GOOGLE_SHEETS_URL = "CREDENCIAL_REMOVIDA";
+    const GOOGLE_SHEETS_URL = "Credencial Removida";
     
     if (!GOOGLE_SHEETS_URL) {
       console.log('Google Sheets URL não configurada, retornando dados locais');
@@ -510,7 +556,7 @@ ipcMain.handle('get-occurrences', async (event) => {
           // Seguir redirecionamentos
           if (res.statusCode === 302 || res.statusCode === 301 || res.statusCode === 307 || res.statusCode === 308) {
             const redirectUrl = res.headers.location;
-            logInfo('[SHEETS] Redirecionamento para Google Sheets');
+            console.log(`Redirecionando para: ${redirectUrl}`);
             followRedirects(redirectUrl, maxRedirects - 1).then(resolve).catch(reject);
             return;
           }
@@ -530,19 +576,67 @@ ipcMain.handle('get-occurrences', async (event) => {
       followRedirects(GOOGLE_SHEETS_URL)
         .then(responseData => {
           try {
-            logInfo('[SHEETS] Dados recebidos com sucesso');
+            console.log('Resposta do Google Sheets (primeiros 500 caracteres):', responseData.substring(0, 500));
+            
+            // Verificar se a resposta é HTML (erro do Google)
+            if (responseData.trim().startsWith('<!DOCTYPE') || responseData.trim().startsWith('<!doctype')) {
+              // Verificar se é erro de "muitas solicitações"
+              if (responseData.includes('muitas solicitações') || responseData.includes('Há muitas solicitações') || 
+                  responseData.includes('too many requests') || responseData.includes('indisponível')) {
+                console.warn('⚠ Google Sheets temporariamente indisponível (muitas solicitações)');
+                console.warn('   Aguarde alguns instantes antes de tentar novamente.');
+                return resolve({ 
+                  success: false, 
+                  message: 'Google Sheets temporariamente indisponível. Aguarde alguns instantes e tente novamente.',
+                  data: [],
+                  errorType: 'rate_limit'
+                });
+              }
+              
+              // Outro tipo de erro HTML
+              console.warn('⚠ Google Sheets retornou HTML em vez de JSON');
+              return resolve({ 
+                success: false, 
+                message: 'Erro ao carregar dados do Google Sheets. Tente novamente em alguns instantes.',
+                data: [],
+                errorType: 'html_response'
+              });
+            }
+            
             const data = JSON.parse(responseData);
-            logInfo(`[SHEETS] ${data.occurrences?.length || 0} ocorrencias carregadas`);
+            console.log('Dados parseados com sucesso. Total de ocorrências:', data.occurrences?.length || 0);
             resolve({ success: true, data: data.occurrences || [] });
           } catch (err) {
             console.error('Erro ao parsear resposta:', err);
             console.error('Resposta recebida:', responseData.substring(0, 200));
-            resolve({ success: true, data: [] });
+            
+            // Verificar se é erro de "muitas solicitações" mesmo no catch
+            if (responseData.includes('muitas solicitações') || responseData.includes('Há muitas solicitações') || 
+                responseData.includes('too many requests')) {
+              return resolve({ 
+                success: false, 
+                message: 'Google Sheets temporariamente indisponível. Aguarde alguns instantes e tente novamente.',
+                data: [],
+                errorType: 'rate_limit'
+              });
+            }
+            
+            resolve({ 
+              success: false, 
+              message: 'Erro ao processar resposta do Google Sheets. Tente novamente.',
+              data: [],
+              errorType: 'parse_error'
+            });
           }
         })
         .catch(error => {
           console.error('Erro ao carregar do Google Sheets:', error);
-          resolve({ success: true, data: [] });
+          resolve({ 
+            success: false, 
+            message: 'Erro ao conectar com Google Sheets: ' + error.message,
+            data: [],
+            errorType: 'connection_error'
+          });
         });
     });
   } catch (error) {
@@ -556,7 +650,7 @@ ipcMain.handle('update-occurrence', async (event, data) => {
   console.log('Atualizando ocorrência:', data);
   
   try {
-    const GOOGLE_SHEETS_URL = "CREDENCIAL_REMOVIDA";
+    const GOOGLE_SHEETS_URL = "Credencial Removida";
     
     if (!GOOGLE_SHEETS_URL) {
       return { success: false, message: 'Google Sheets URL não configurada' };
@@ -578,8 +672,8 @@ ipcMain.handle('update-occurrence', async (event, data) => {
       leiInfrigida: data.ocorrencia?.leiInfrigida || '',
       artigo: data.ocorrencia?.artigo || '',
       status: data.ocorrencia?.status || '',
-      numeroPje: data.ocorrencia?.numeroPje || '-',
-      especie: data.itemApreendido?.especie ? normalizeCapitalization(data.itemApreendido.especie) : '',
+      numeroPje: data.ocorrencia?.numeroPje || '',
+      especie: data.itemApreendido?.especie || '', // Espécie mantém valor original (já vem em maiúsculas do select)
       item: data.itemApreendido?.item ? normalizeCapitalization(data.itemApreendido.item) : '',
       quantidade: data.itemApreendido?.quantidade || '',
       descricaoItem: data.itemApreendido?.descricao || '',
@@ -657,7 +751,20 @@ ipcMain.handle('update-occurrence', async (event, data) => {
     return new Promise((resolve, reject) => {
       postWithRedirects(GOOGLE_SHEETS_URL, postData)
         .then(responseData => {
-          logInfo('[SHEETS] Ocorrencia salva com sucesso');
+          console.log('✓ Resposta do Google Sheets:', responseData.substring(0, 500));
+          
+          // Verificar se é erro de "muitas solicitações"
+          if (responseData.includes('muitas solicitações') || responseData.includes('indisponível') || responseData.trim().startsWith('<!DOCTYPE')) {
+            console.warn('⚠ Google Sheets temporariamente indisponível (muitas solicitações)');
+            // Retornar erro temporário, mas não crítico
+            resolve({ 
+              success: false, 
+              message: 'Google Sheets temporariamente indisponível. Os dados foram atualizados localmente. Tente novamente em alguns instantes.',
+              temporary: true 
+            });
+            return;
+          }
+          
           try {
             const result = JSON.parse(responseData);
             if (result.success) {
@@ -666,7 +773,8 @@ ipcMain.handle('update-occurrence', async (event, data) => {
               resolve({ success: false, message: result.message || 'Erro ao atualizar' });
             }
           } catch (err) {
-            // Se não for JSON, considerar sucesso se não houver erro
+            // Se não for JSON válido, mas não é erro de "muitas solicitações", considerar sucesso
+            console.warn('⚠ Resposta não-JSON do Google Sheets, mas assumindo sucesso');
             resolve({ success: true, message: 'Ocorrência atualizada com sucesso' });
           }
         })
@@ -682,171 +790,10 @@ ipcMain.handle('update-occurrence', async (event, data) => {
   }
 });
 
-// IPC Handler para obter TCOs do Google Sheets
-ipcMain.handle('get-tcos', async (event) => {
-  try {
-    const GOOGLE_SHEETS_URL = "CREDENCIAL_REMOVIDA";
-    
-    if (!GOOGLE_SHEETS_URL) {
-      console.log('Google Sheets URL não configurada para TCOs');
-      return { success: true, tcos: [] };
-    }
-    
-    const https = require('https');
-    const url = require('url');
-    
-    // Função recursiva para seguir redirecionamentos
-    const followRedirects = (targetUrl, maxRedirects = 5) => {
-      return new Promise((resolve, reject) => {
-        if (maxRedirects === 0) {
-          reject(new Error('Muitos redirecionamentos'));
-          return;
-        }
-        
-        // Adicionar parâmetro para indicar que queremos TCOs
-        const urlWithParam = targetUrl + (targetUrl.includes('?') ? '&' : '?') + 'action=get_tcos';
-        
-        https.get(urlWithParam, (res) => {
-          // Seguir redirecionamentos
-          if (res.statusCode === 302 || res.statusCode === 301 || res.statusCode === 307 || res.statusCode === 308) {
-            const redirectUrl = res.headers.location;
-            logInfo('[TCO] Redirecionamento para Google Sheets');
-            followRedirects(redirectUrl, maxRedirects - 1).then(resolve).catch(reject);
-            return;
-          }
-          
-          let responseData = '';
-          res.on('data', (chunk) => { responseData += chunk; });
-          res.on('end', () => {
-            resolve(responseData);
-          });
-        }).on('error', (error) => {
-          reject(error);
-        });
-      });
-    };
-    
-    return new Promise((resolve, reject) => {
-      followRedirects(GOOGLE_SHEETS_URL)
-        .then(responseData => {
-          try {
-            logInfo('[TCO] Dados recebidos com sucesso');
-            const data = JSON.parse(responseData);
-            logInfo(`[TCO] ${data.tcos?.length || 0} TCOs carregados`);
-            resolve({ success: true, tcos: data.tcos || [] });
-          } catch (err) {
-            console.error('Erro ao parsear resposta TCO:', err);
-            console.error('Resposta recebida:', responseData.substring(0, 200));
-            resolve({ success: true, tcos: [] });
-          }
-        })
-        .catch(error => {
-          console.error('Erro ao carregar TCOs do Google Sheets:', error);
-          resolve({ success: true, tcos: [] });
-        });
-    });
-  } catch (error) {
-    console.error('Erro ao obter TCOs:', error);
-    return { success: false, message: error.message, tcos: [] };
-  }
-});
-
-// IPC Handler para exportar TCOs para Excel
-ipcMain.handle('export-tcos', async (event, tcosData) => {
-  try {
-    console.log('Exportação de TCOs iniciada com', tcosData?.length || 0, 'registros');
-    
-    // Verificar se há dados para exportar
-    if (!tcosData || tcosData.length === 0) {
-      return { success: false, message: 'Nenhum TCO encontrado' };
-    }
-    
-    // Preparar dados para exportação
-    const worksheetData = [
-      [
-        'Data Registro',
-        'RAP (GÊNESIS)',
-        'Envolvido',
-        'Ilícito',
-        'Unidade',
-        'Data Apreensão',
-        'Item',
-        'Quantidade',
-        'Policial',
-        'Matrícula'
-      ]
-    ];
-    
-    tcosData.forEach((tco, index) => {
-      try {
-        worksheetData.push([
-          tco.dataRegistro || '',
-          tco.rap || '',
-          tco.envolvido || '',
-          tco.ilicito || '',
-          tco.unidade || '',
-          tco.dataApreensao || '',
-          tco.item || '',
-          tco.quantidade || '',
-          tco.policial || '',
-          tco.matricula || ''
-        ]);
-      } catch (err) {
-        console.error(`Erro ao processar TCO ${index}:`, err, tco);
-      }
-    });
-    
-    // Criar workbook
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-    
-    // Aplicar larguras automáticas
-    const colWidths = [];
-    for (let col = 0; col < worksheetData[0].length; col++) {
-      let maxWidth = 0;
-      for (let row = 0; row < worksheetData.length; row++) {
-        const cellValue = worksheetData[row][col];
-        if (cellValue) {
-          const cellLength = cellValue.toString().length;
-          maxWidth = Math.max(maxWidth, cellLength);
-        }
-      }
-      colWidths.push({ wch: Math.min(Math.max(maxWidth + 2, 10), 50) });
-    }
-    worksheet['!cols'] = colWidths;
-    
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'TCOs');
-    
-    // Gerar nome do arquivo
-    const dateStr = formatDateForFilename();
-    const filename = `[EXPORTAÇÃO][${dateStr}].xlsx`;
-    const filepath = path.join(FOLDERS.exportacoesTco, filename);
-    
-    // Salvar arquivo
-    XLSX.writeFile(workbook, filepath);
-    
-    console.log('✓ Arquivo Excel de TCOs criado:', filepath);
-    
-    return {
-      success: true,
-      message: `TCOs exportados com sucesso! Total: ${tcosData.length} registros`,
-      filePath: filepath,
-      recordCount: tcosData.length
-    };
-    
-  } catch (error) {
-    console.error('Erro ao exportar TCOs:', error);
-    return {
-      success: false,
-      message: 'Erro ao exportar TCOs: ' + error.message
-    };
-  }
-});
-
 // IPC Handler para excluir ocorrência (APENAS Google Sheets)
 ipcMain.handle('delete-occurrence', async (event, numeroGenesis) => {
   try {
-    const GOOGLE_SHEETS_URL = "CREDENCIAL_REMOVIDA";
+    const GOOGLE_SHEETS_URL = "Credencial Removida";
     
     if (!GOOGLE_SHEETS_URL) {
       return { success: false, message: 'Google Sheets URL não configurada' };
@@ -926,7 +873,7 @@ ipcMain.handle('delete-occurrence', async (event, numeroGenesis) => {
     return new Promise((resolve, reject) => {
       postWithRedirects(GOOGLE_SHEETS_URL, postData)
         .then(responseData => {
-          logInfo('[SHEETS] Ocorrencia excluida com sucesso');
+          console.log('✓ Resposta do Google Sheets (delete):', responseData);
           try {
             const result = JSON.parse(responseData);
             if (result.success) {
@@ -951,103 +898,10 @@ ipcMain.handle('delete-occurrence', async (event, numeroGenesis) => {
   }
 });
 
-// IPC Handler para atualizar TCO
-ipcMain.handle('update-tco', async (event, tcoData) => {
-  try {
-    const GOOGLE_SHEETS_URL = "CREDENCIAL_REMOVIDA";
-    
-    if (!GOOGLE_SHEETS_URL) {
-      return { success: false, message: 'Google Sheets URL não configurada' };
-    }
-    
-    if (!tcoData || !tcoData.rap) {
-      return { success: false, message: 'Dados do TCO não fornecidos' };
-    }
-    
-    const https = require('https');
-    const url = require('url');
-    
-    const updateData = {
-      action: 'update_tco',
-      ...tcoData
-    };
-    
-    console.log('Enviando atualização de TCO para Google Sheets:', updateData);
-    
-    const postData = JSON.stringify(updateData);
-    
-    // Função recursiva para seguir redirecionamentos em POST
-    const postWithRedirects = (targetUrl, payload, maxRedirects = 5) => {
-      return new Promise((resolve, reject) => {
-        if (maxRedirects === 0) {
-          reject(new Error('Muitos redirecionamentos'));
-          return;
-        }
-        
-        const parsedUrl = url.parse(targetUrl);
-        const options = {
-          hostname: parsedUrl.hostname,
-          path: parsedUrl.path,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(payload)
-          }
-        };
-        
-        const req = https.request(options, (res) => {
-          // Seguir redirecionamentos
-          if (res.statusCode === 302 || res.statusCode === 301 || res.statusCode === 307 || res.statusCode === 308) {
-            const redirectUrl = res.headers.location;
-            console.log('[TCO Update] Redirecionamento para:', redirectUrl);
-            postWithRedirects(redirectUrl, payload, maxRedirects - 1).then(resolve).catch(reject);
-            return;
-          }
-          
-          let responseData = '';
-          res.on('data', (chunk) => { responseData += chunk; });
-          res.on('end', () => {
-            resolve(responseData);
-          });
-        });
-        
-        req.on('error', (error) => {
-          reject(error);
-        });
-        
-        req.write(payload);
-        req.end();
-      });
-    };
-    
-    return new Promise((resolve, reject) => {
-      postWithRedirects(GOOGLE_SHEETS_URL, postData)
-        .then(responseData => {
-          try {
-            console.log('[TCO Update] Resposta recebida:', responseData);
-            const response = JSON.parse(responseData);
-            resolve(response);
-          } catch (err) {
-            console.error('Erro ao parsear resposta de atualização TCO:', err);
-            resolve({ success: true, message: 'TCO atualizado com sucesso' });
-          }
-        })
-        .catch(error => {
-          console.error('Erro ao atualizar TCO:', error);
-          reject({ success: false, message: 'Erro ao atualizar: ' + error.message });
-        });
-    });
-    
-  } catch (error) {
-    console.error('Erro ao atualizar TCO:', error);
-    return { success: false, message: error.message };
-  }
-});
-
-// IPC Handler para excluir TCO
+// IPC Handler para excluir TCO (APENAS Google Sheets)
 ipcMain.handle('delete-tco', async (event, rap) => {
   try {
-    const GOOGLE_SHEETS_URL = "CREDENCIAL_REMOVIDA";
+    const GOOGLE_SHEETS_URL = "Credencial Removida";
     
     if (!GOOGLE_SHEETS_URL) {
       return { success: false, message: 'Google Sheets URL não configurada' };
@@ -1061,7 +915,7 @@ ipcMain.handle('delete-tco', async (event, rap) => {
     const url = require('url');
     
     const deleteData = {
-      action: 'delete_tco',
+      action: 'delete-tco',
       rap: rap
     };
     
@@ -1092,8 +946,19 @@ ipcMain.handle('delete-tco', async (event, rap) => {
           // Seguir redirecionamentos
           if (res.statusCode === 302 || res.statusCode === 301 || res.statusCode === 307 || res.statusCode === 308) {
             const redirectUrl = res.headers.location;
-            console.log('[TCO Delete] Redirecionamento para:', redirectUrl);
-            postWithRedirects(redirectUrl, payload, maxRedirects - 1).then(resolve).catch(reject);
+            console.log(`Redirecionando DELETE TCO para: ${redirectUrl}`);
+            
+            if (res.statusCode === 307 || res.statusCode === 308) {
+              postWithRedirects(redirectUrl, payload, maxRedirects - 1).then(resolve).catch(reject);
+            } else {
+              https.get(redirectUrl, (getRes) => {
+                let responseData = '';
+                getRes.on('data', (chunk) => { responseData += chunk; });
+                getRes.on('end', () => {
+                  resolve(responseData);
+                });
+              }).on('error', reject);
+            }
             return;
           }
           
@@ -1104,10 +969,7 @@ ipcMain.handle('delete-tco', async (event, rap) => {
           });
         });
         
-        req.on('error', (error) => {
-          reject(error);
-        });
-        
+        req.on('error', reject);
         req.write(payload);
         req.end();
       });
@@ -1116,18 +978,23 @@ ipcMain.handle('delete-tco', async (event, rap) => {
     return new Promise((resolve, reject) => {
       postWithRedirects(GOOGLE_SHEETS_URL, postData)
         .then(responseData => {
+          console.log('✓ Resposta do Google Sheets (exclusão TCO):', responseData.substring(0, 500));
+          
           try {
-            console.log('[TCO Delete] Resposta recebida:', responseData);
-            const response = JSON.parse(responseData);
-            resolve(response);
+            const result = JSON.parse(responseData);
+            if (result.success) {
+              resolve({ success: true, message: 'TCO excluído com sucesso' });
+            } else {
+              resolve({ success: false, message: result.message || 'Erro ao excluir TCO' });
+            }
           } catch (err) {
-            console.error('Erro ao parsear resposta de exclusão TCO:', err);
-            resolve({ success: true, message: 'TCO excluído com sucesso' });
+            console.error('Erro ao parsear resposta de exclusão de TCO:', err);
+            resolve({ success: false, message: 'Erro ao processar resposta do Google Sheets' });
           }
         })
         .catch(error => {
-          console.error('Erro ao excluir TCO:', error);
-          reject({ success: false, message: 'Erro ao excluir: ' + error.message });
+          console.error('Erro ao excluir TCO no Google Sheets:', error);
+          reject({ success: false, message: 'Erro ao excluir TCO: ' + error.message });
         });
     });
     
@@ -1137,36 +1004,12 @@ ipcMain.handle('delete-tco', async (event, rap) => {
   }
 });
 
-// IPC Handler para imprimir documento de TCO
-ipcMain.handle('print-tco-document', async (event, tcoData) => {
-  try {
-    console.log('Gerando documento TCO para:', tcoData.rap);
-    
-    // Por enquanto, apenas simular a geração do documento
-    // Futuramente pode ser implementado um template específico para TCO
-    console.log('Funcionalidade de impressão de TCO em desenvolvimento.');
-    
-    return { success: false, message: 'Funcionalidade de impressão de TCO em desenvolvimento.' };
-    
-  } catch (error) {
-    console.error('Erro ao gerar documento TCO:', error);
-    return { success: false, message: error.message };
-  }
-});
-
 // IPC Handler para exportar todas as ocorrências para Excel
 ipcMain.handle('export-occurrences', async (event, occurrencesData) => {
   try {
-    console.log('Exportação iniciada com', occurrencesData?.length || 0, 'ocorrências');
-    
     // Verificar se há dados para exportar
     if (!occurrencesData || occurrencesData.length === 0) {
       return { success: false, message: 'Nenhuma ocorrência encontrada' };
-    }
-    
-    // Log da estrutura da primeira ocorrência para debug
-    if (occurrencesData.length > 0) {
-      console.log('Estrutura da primeira ocorrência para exportação:', JSON.stringify(occurrencesData[0], null, 2));
     }
     
     // Preparar dados para exportação (mesma ordem do Google Sheets)
@@ -1179,7 +1022,6 @@ ipcMain.handle('export-occurrences', async (event, occurrencesData) => {
         'Lei Infringida',
         'Artigo',
         'Status',
-        'Nº PJE',
         'Espécie',
         'Item',
         'Quantidade',
@@ -1195,122 +1037,31 @@ ipcMain.handle('export-occurrences', async (event, occurrencesData) => {
       ]
     ];
     
-    occurrencesData.forEach((data, index) => {
+    occurrencesData.forEach(data => {
       try {
-        // Função auxiliar para extrair dados de forma robusta
-        const safeGet = (obj, path, defaultValue = '') => {
-          try {
-            return path.split('.').reduce((current, key) => current?.[key], obj) || defaultValue;
-          } catch {
-            return defaultValue;
-          }
-        };
-        
-        // Extrair dados com fallbacks para diferentes estruturas
-        const logRegistro = safeGet(data, 'metadata.dataRegistro') || 
-                           safeGet(data, 'dataRegistro') || 
-                           new Date().toISOString();
-        
-        const numeroGenesis = safeGet(data, 'ocorrencia.numeroGenesis') || 
-                             safeGet(data, 'numeroGenesis') || 
-                             safeGet(data, 'Nº Genesis') || '';
-        
-        const unidade = safeGet(data, 'ocorrencia.unidade') || 
-                       safeGet(data, 'unidade') || 
-                       safeGet(data, 'Unidade') || '';
-        
-        const dataApreensao = safeGet(data, 'ocorrencia.dataApreensao') || 
-                             safeGet(data, 'dataApreensao') || 
-                             safeGet(data, 'Data Apreensão') || '';
-        
-        const leiInfrigida = safeGet(data, 'ocorrencia.leiInfrigida') || 
-                            safeGet(data, 'leiInfrigida') || 
-                            safeGet(data, 'Lei Infringida') || '';
-        
-        const artigo = safeGet(data, 'ocorrencia.artigo') || 
-                      safeGet(data, 'artigo') || 
-                      safeGet(data, 'Artigo') || '';
-        
-        const status = safeGet(data, 'ocorrencia.status') || 
-                      safeGet(data, 'status') || 
-                      safeGet(data, 'Status') || '';
-        
-        const numeroPje = safeGet(data, 'ocorrencia.numeroPje') || 
-                         safeGet(data, 'numeroPje') || 
-                         safeGet(data, 'Nº PJE') || '-';
-        
-        const especie = safeGet(data, 'itemApreendido.especie') || 
-                       safeGet(data, 'especie') || 
-                       safeGet(data, 'Espécie') || '';
-        
-        const item = safeGet(data, 'itemApreendido.item') || 
-                    safeGet(data, 'item') || 
-                    safeGet(data, 'Item') || '';
-        
-        const quantidade = safeGet(data, 'itemApreendido.quantidade') || 
-                          safeGet(data, 'quantidade') || 
-                          safeGet(data, 'Quantidade') || '';
-        
-        const descricao = safeGet(data, 'itemApreendido.descricao') || 
-                         safeGet(data, 'descricao') || 
-                         safeGet(data, 'Descrição') || '';
-        
-        const nomeProprietario = safeGet(data, 'proprietario.nome') || 
-                                safeGet(data, 'nomeProprietario') || 
-                                safeGet(data, 'Nome Proprietário') || '';
-        
-        const tipoDocumento = safeGet(data, 'proprietario.tipoDocumento') || 
-                             safeGet(data, 'tipoDocumento') || 
-                             safeGet(data, 'Tipo Documento') || '';
-        
-        const numeroDocumento = safeGet(data, 'proprietario.numeroDocumento') || 
-                               safeGet(data, 'numeroDocumento') || 
-                               safeGet(data, 'Nº Documento') || '';
-        
-        const nomePolicial = safeGet(data, 'policial.nome') || 
-                            safeGet(data, 'nomePolicial') || 
-                            safeGet(data, 'Nome Policial') || '';
-        
-        const matricula = safeGet(data, 'policial.matricula') || 
-                         safeGet(data, 'matricula') || 
-                         safeGet(data, 'Matrícula') || '';
-        
-        const graduacao = safeGet(data, 'policial.graduacao') || 
-                         safeGet(data, 'graduacao') || 
-                         safeGet(data, 'Graduação') || '';
-        
-        const unidadePolicial = safeGet(data, 'policial.unidade') || 
-                               safeGet(data, 'unidadePolicial') || 
-                               safeGet(data, 'Unidade Policial') || '';
-        
-        const registradoPor = safeGet(data, 'metadata.registradoPor') || 
-                             safeGet(data, 'registradoPor') || 
-                             safeGet(data, 'Registrado Por') || '';
-        
         worksheetData.push([
-          new Date(logRegistro).toLocaleString('pt-BR'),
-          numeroGenesis,
-          unidade,
-          isoToBrDate(dataApreensao),
-          leiInfrigida,
-          artigo,
-          status,
-          numeroPje,
-          normalizeCapitalization(especie),
-          normalizeCapitalization(item),
-          quantidade,
-          descricao,
-          nomeProprietario,
-          tipoDocumento,
-          numeroDocumento,
-          nomePolicial,
-          matricula,
-          graduacao,
-          unidadePolicial,
-          registradoPor
+          new Date(data.metadata.dataRegistro).toLocaleString('pt-BR'),
+          data.ocorrencia.numeroGenesis,
+          data.ocorrencia.unidade,
+          isoToBrDate(data.ocorrencia.dataApreensao),
+          data.ocorrencia.leiInfrigida,
+          data.ocorrencia.artigo,
+          data.ocorrencia.status,
+          normalizeCapitalization(data.itemApreendido.especie),
+          normalizeCapitalization(data.itemApreendido.item),
+          data.itemApreendido.quantidade,
+          data.itemApreendido.descricao,
+          data.proprietario.nome,
+          data.proprietario.tipoDocumento,
+          data.proprietario.numeroDocumento,
+          data.policial.nome,
+          data.policial.matricula,
+          data.policial.graduacao,
+          data.policial.unidade,
+          data.metadata.registradoPor
         ]);
       } catch (err) {
-        console.error(`Erro ao processar ocorrência ${index}:`, err, data);
+        console.error('Erro ao processar ocorrência:', err);
       }
     });
     
@@ -1372,15 +1123,13 @@ ipcMain.handle('export-occurrences', async (event, occurrencesData) => {
     
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Todas Ocorrências');
     
-    // Salvar arquivo em C:\SECRIMPO\Exportacao\Ocorrencias
+    // Salvar arquivo em C:\SECRIMPO\Exportacao
     const dateStr = formatDateForFilename();
-    const exportFilename = `[EXPORTAÇÃO][${dateStr}].xlsx`;
-    const exportPath = path.join(FOLDERS.exportacoesOcorrencias, exportFilename);
+    const exportFilename = `[EXPORTACAO][${dateStr}].xlsx`;
+    const exportPath = path.join(FOLDERS.exportacoes, exportFilename);
     
     XLSX.writeFile(workbook, exportPath);
-    console.log('Exportação concluída com sucesso:');
-    console.log('- Total de linhas no Excel:', worksheetData.length);
-    console.log('- Arquivo salvo em:', exportPath);
+    console.log('✓ Exportação salva em:', exportPath);
     
     return { 
       success: true, 
@@ -1680,101 +1429,146 @@ ipcMain.handle('get-active-users-count', async (event) => {
   });
 });
 
-
-
-// ============================================================================
-// SISTEMA DE ATUALIZAÇÕES
-// ============================================================================
-
-// Inicializar sistema de atualizações
-function initializeUpdater() {
+// IPC Handler para obter TCOs do Google Sheets (Página 2)
+ipcMain.handle('get-tcos', async (event) => {
   try {
-    updater = new AutoUpdater({
-      owner: 'CREDENCIAL_REMOVIDA', // Usuário do GitHub
-      repo: 'CREDENCIAL_REMOVIDA', // Nome do repositório
-      currentVersion: app.getVersion(),
-      autoCheck: true,
-      checkInterval: 5 * 60 * 1000 // Verificar a cada 5 minutos
-    });
-
-    // Eventos do updater
-    updater.on('checking-for-update', () => {
-      console.log('[UPDATE] Verificando atualizacoes disponveis...');
-    });
-
-    updater.on('update-available', (updateInfo) => {
-      console.log('[UPDATE] Nova versao disponivel:', updateInfo.latestVersion);
-      // Mostrar diálogo apenas se foi verificação manual
-      updater.showUpdateDialog(updateInfo);
-    });
-
-    updater.on('update-available-silent', (updateInfo) => {
-      console.log('[UPDATE] Atualizacao detectada (modo silencioso):', updateInfo.latestVersion);
-      // Enviar para o renderer process para mostrar notificação na tela de login
-      if (mainWindow) {
-        mainWindow.webContents.send('update-available-silent', updateInfo);
-      }
-    });
-
-    updater.on('update-not-available', () => {
-      console.log('[UPDATE] Sistema ja esta na versao mais recente');
-    });
-
-    updater.on('update-downloading', () => {
-      console.log('[UPDATE] Iniciando download da atualizacao...');
-      if (mainWindow) {
-        mainWindow.webContents.send('update-downloading');
-      }
-    });
-
-    updater.on('download-progress', (progress) => {
-      console.log(`[UPDATE] Progresso do download: ${progress}%`);
-      if (mainWindow) {
-        mainWindow.webContents.send('download-progress', progress);
-      }
-    });
-
-    updater.on('update-downloaded', (filePath) => {
-      console.log('[UPDATE] Download concluido:', filePath);
-      if (mainWindow) {
-        mainWindow.webContents.send('update-downloaded', filePath);
-      }
-    });
-
-    updater.on('error', (error) => {
-      console.error('[UPDATE] Erro durante atualizacao:', error);
-      if (mainWindow) {
-        mainWindow.webContents.send('update-error', error);
-      }
-    });
-
-    logInfo('Sistema de atualizacoes inicializado');
+    const GOOGLE_SHEETS_URL = "Credencial Removida";
+    
+    if (!GOOGLE_SHEETS_URL) {
+      console.log('Google Sheets URL não configurada');
+      return { success: false, tcos: [] };
+    }
+    
+    const https = require('https');
+    const url = require('url');
+    
+    // Adicionar parâmetro type=tco para buscar TCOs
+    const tcoUrl = GOOGLE_SHEETS_URL + '?type=tco';
+    
+    // Função para seguir redirecionamentos
+    const getWithRedirects = (targetUrl, maxRedirects = 5) => {
+      return new Promise((resolve, reject) => {
+        if (maxRedirects === 0) {
+          reject(new Error('Muitos redirecionamentos'));
+          return;
+        }
+        
+        const parsedUrl = url.parse(targetUrl);
+        const options = {
+          hostname: parsedUrl.hostname,
+          path: parsedUrl.path,
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0'
+          }
+        };
+        
+        const req = https.request(options, (res) => {
+          // Seguir redirecionamentos
+          if (res.statusCode === 302 || res.statusCode === 301 || res.statusCode === 307 || res.statusCode === 308) {
+            const redirectUrl = res.headers.location;
+            console.log('Redirecionando TCO para:', redirectUrl);
+            getWithRedirects(redirectUrl, maxRedirects - 1).then(resolve).catch(reject);
+            return;
+          }
+          
+          let data = '';
+          
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+          
+          res.on('end', () => {
+            resolve(data);
+          });
+        });
+        
+        req.on('error', (error) => {
+          reject(error);
+        });
+        
+        req.end();
+      });
+    };
+    
+    const data = await getWithRedirects(tcoUrl);
+    
+    try {
+      const response = JSON.parse(data);
+      console.log('TCOs recebidos:', response);
+      return response;
+    } catch (error) {
+      console.error('Erro ao parsear resposta de TCOs:', error);
+      console.error('Resposta recebida:', data.substring(0, 200));
+      return { success: false, tcos: [] };
+    }
+    
   } catch (error) {
-    console.error('[ERRO] Falha ao inicializar sistema de atualizacoes:', error.message);
-  }
-}
-
-// IPC Handlers para atualizações
-ipcMain.handle('check-for-updates', async () => {
-  if (updater) {
-    return await updater.checkForUpdatesManual();
-  }
-  return false;
-});
-
-ipcMain.handle('check-for-updates-silent', async () => {
-  if (updater) {
-    return await updater.checkForUpdatesSilent();
-  }
-  return { hasUpdate: false };
-});
-
-ipcMain.on('start-update', (event, updateInfo) => {
-  if (updater) {
-    updater.startUpdate(updateInfo);
+    console.error('Erro ao obter TCOs:', error);
+    return { success: false, tcos: [] };
   }
 });
 
-ipcMain.handle('get-app-version', () => {
-  return app.getVersion();
+// IPC Handler para exportar TCOs para Excel
+ipcMain.handle('export-tcos', async (event, tcoData) => {
+  try {
+    // Verificar se há dados para exportar
+    if (!tcoData || tcoData.length === 0) {
+      return { success: false, message: 'Nenhum TCO encontrado' };
+    }
+    
+    // Preparar dados para exportação
+    const worksheetData = [
+      [
+        'RAP (GÊNESIS)',
+        'Envolvido',
+        'Ilícito',
+        'Item'
+      ]
+    ];
+    
+    tcoData.forEach(tco => {
+      worksheetData.push([
+        tco.rap || '',
+        tco.envolvido || '',
+        tco.ilicito || '',
+        tco.item || ''
+      ]);
+    });
+    
+    // Criar workbook
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    
+    // Ajustar largura das colunas
+    const columnWidths = [
+      { wch: 20 }, // RAP
+      { wch: 30 }, // Envolvido
+      { wch: 30 }, // Ilícito
+      { wch: 30 }  // Item
+    ];
+    worksheet['!cols'] = columnWidths;
+    
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'TCOs');
+    
+    // Salvar arquivo em C:\SECRIMPO\Exportacao
+    const dateStr = formatDateForFilename();
+    const exportFilename = `[EXPORTACAO_TCO][${dateStr}].xlsx`;
+    const exportPath = path.join(FOLDERS.exportacoes, exportFilename);
+    
+    XLSX.writeFile(workbook, exportPath);
+    console.log('✓ Exportação de TCOs salva em:', exportPath);
+    
+    return { 
+      success: true, 
+      message: 'Exportação de TCOs concluída com sucesso',
+      filePath: exportPath
+    };
+  } catch (error) {
+    console.error('Erro ao exportar TCOs:', error);
+    return { 
+      success: false, 
+      message: 'Erro ao exportar TCOs: ' + error.message 
+    };
+  }
 });

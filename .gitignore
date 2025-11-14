@@ -147,6 +147,5 @@ coverage/
 # ========================================
 # ARQUIVOS DE DESENVOLVIMENTO
 # ========================================
-COMMIT_MESSAGE.txt
 EXEMPLO_*.txt
 test-*.js

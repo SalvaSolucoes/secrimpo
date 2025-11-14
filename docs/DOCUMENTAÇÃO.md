@@ -148,8 +148,8 @@ SecrimpoPMDF/
 
 // Sistema
 'load-panel'               // Carregar painel de ocorrências
-'check-for-updates'        // Verificar atualizações
-'download-update'          // Baixar atualização
+'check-updates-manual'     // Verificar atualizações manualmente
+'open-external-url'        // Abrir URL externa (download de atualização)
 ```
 
 ### 2. Dashboard (src/scripts/dashboard.js)
@@ -157,9 +157,10 @@ SecrimpoPMDF/
 **Funcionalidades:**
 - Renderização de tabelas de ocorrências e TCOs
 - Gráficos interativos com Chart.js
-- Sistema de busca e filtros
+- Sistema de filtros avançados com modais dedicados
 - Modais de visualização e edição
-- Exportação de dados
+- Exportação de dados com filtros
+- Sistema de atualizações automáticas
 
 **Componentes Principais:**
 ```javascript
@@ -172,12 +173,24 @@ createPieChartItens()       // Tipos de itens apreendidos
 renderOccurrenceTable()    // Renderizar tabela de ocorrências
 renderTCOTable()           // Renderizar tabela de TCOs
 
+// Filtros
+applyOccurrenceFilters()   // Aplicar filtros de ocorrências
+applyTCOFilters()          // Aplicar filtros de TCOs
+clearOccurrenceFilters()   // Limpar filtros de ocorrências
+clearTCOFilters()          // Limpar filtros de TCOs
+populateStatusOptions()    // Preencher opções de status
+populateIlicitoOptions()   // Preencher opções de ilícito
+
 // Modais
 showModal()                // Exibir modal de ocorrência
 showTCOModal()             // Exibir modal de TCO
 
 // Exportação
 exportToExcel()            // Exportar dados para Excel
+
+// Atualizações
+checkForUpdates()          // Verificar atualizações
+showUpdateModal()          // Exibir modal de atualização
 ```
 
 ### 3. Panel (src/scripts/panel.js)
@@ -353,9 +366,17 @@ keyauth.fetchOnline()           # Usuários online
 
 ### 3. GitHub Releases API
 
-**URL:** `Credencial Removida`
+**URL:** `https://api.github.com/repos/SalvaSolucoes/secrimpo/releases/latest`
 
 **Uso:** Verificação automática de atualizações
+
+**Funcionalidades:**
+- Verificação automática uma vez por dia ao abrir a aplicação
+- Verificação manual via botão no menu do usuário
+- Comparação de versões usando versionamento semântico
+- Armazenamento local da última verificação
+- Tratamento de erros (rate limit, repositório não encontrado, etc.)
+- Modal de notificação com informações da nova versão
 
 ---
 
@@ -458,6 +479,23 @@ keyauth.fetchOnline()           # Usuários online
 ---
 
 ## Interface do Usuário
+
+### Sistema de Filtros
+
+#### Filtros de Ocorrências
+- **Nº Genesis**: Campo de texto para busca por número Genesis
+- **Data de Apreensão**: Range de datas (inicial e final)
+- **Unidade**: Dropdown preenchido dinamicamente com unidades únicas
+- **Status**: Dropdown preenchido dinamicamente com status únicos
+- **Persistência**: Filtros mantidos ao reabrir o modal
+- **Combinação**: Filtros funcionam em conjunto (AND)
+
+#### Filtros de TCOs
+- **RAP (Gênesis)**: Campo de texto para busca por RAP
+- **Ilícito**: Dropdown preenchido dinamicamente com ilícitos únicos
+- **Item**: Campo de texto para busca por item
+- **Persistência**: Filtros mantidos ao reabrir o modal
+- **Combinação**: Filtros funcionam em conjunto (AND)
 
 ### Componentes Reutilizáveis
 

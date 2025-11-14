@@ -1,11 +1,11 @@
 const { ipcRenderer } = require('electron');
-const Chart = require('chart.js/auto');
 
 // Elements
 const userInfo = document.getElementById('userInfo');
 const userMenuBtn = document.getElementById('userMenuBtn');
 const userDropdown = document.getElementById('userDropdown');
 const logoutBtn = document.getElementById('logoutBtn');
+const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingText = document.getElementById('loadingText');
 const loadingSubtext = document.getElementById('loadingSubtext');
@@ -29,11 +29,23 @@ const statUsuarios = document.getElementById('statUsuarios');
 
 // Table
 const occurrencesTableBody = document.getElementById('occurrencesTableBody');
-const searchInput = document.getElementById('searchInput');
 const exportBtn = document.getElementById('exportBtn');
 const refreshBtn = document.getElementById('refreshBtn');
 const emptyState = document.getElementById('emptyState');
 const btnNovaOcorrenciaEmpty = document.getElementById('btnNovaOcorrenciaEmpty');
+
+// Filter elements
+const filterBtn = document.getElementById('filterBtn');
+const filterModal = document.getElementById('filterModal');
+const filterModalClose = document.getElementById('filterModalClose');
+const btnApplyFilters = document.getElementById('btnApplyFilters');
+const btnClearFilters = document.getElementById('btnClearFilters');
+
+const filterBtnTCO = document.getElementById('filterBtnTCO');
+const filterModalTCO = document.getElementById('filterModalTCO');
+const filterModalTCOClose = document.getElementById('filterModalTCOClose');
+const btnApplyFiltersTCO = document.getElementById('btnApplyFiltersTCO');
+const btnClearFiltersTCO = document.getElementById('btnClearFiltersTCO');
 
 // Modals
 const viewModal = document.getElementById('viewModal');
@@ -55,23 +67,41 @@ const printOccurrenceId = document.getElementById('printOccurrenceId');
 const btnCancelPrint = document.getElementById('btnCancelPrint');
 const btnPrintTermoApreensao = document.getElementById('btnPrintTermoApreensao');
 
+const exportFilterModal = document.getElementById('exportFilterModal');
+const exportFilterModalClose = document.getElementById('exportFilterModalClose');
+const btnCancelExportFilter = document.getElementById('btnCancelExportFilter');
+const btnConfirmExportFilter = document.getElementById('btnConfirmExportFilter');
+
+const exportTCOFilterModal = document.getElementById('exportTCOFilterModal');
+const exportTCOFilterModalClose = document.getElementById('exportTCOFilterModalClose');
+const btnCancelExportTCOFilter = document.getElementById('btnCancelExportTCOFilter');
+const btnConfirmExportTCOFilter = document.getElementById('btnConfirmExportTCOFilter');
+
+const updateModal = document.getElementById('updateModal');
+const updateModalClose = document.getElementById('updateModalClose');
+const btnUpdateLater = document.getElementById('btnUpdateLater');
+const btnDownloadUpdate = document.getElementById('btnDownloadUpdate');
+const currentVersionDisplay = document.getElementById('currentVersionDisplay');
+const latestVersionDisplay = document.getElementById('latestVersionDisplay');
+const releaseNotesContent = document.getElementById('releaseNotesContent');
+
 // State
 let allOccurrences = [];
 let filteredOccurrences = [];
 let currentOccurrence = null;
 let isEditMode = false;
-
-// Charts - Visão Geral (3 gráficos principais)
-let lineChart = null;           // Evolução Temporal
-let pieChartUnidade = null;     // Distribuição por Unidades
-let pieChartItens = null;       // Tipos de Itens Apreendidos
-
-// Date filter
-let customDateRange = null; // { startDate: Date, endDate: Date }
-const filterDataInicio = document.getElementById('filterDataInicio');
-const filterDataFim = document.getElementById('filterDataFim');
-const btnFilterChart = document.getElementById('btnFilterChart');
-const btnResetFilter = document.getElementById('btnResetFilter');
+let activeFilters = {
+    numeroGenesis: '',
+    dataInicial: '',
+    dataFinal: '',
+    unidade: '',
+    status: ''
+};
+let activeFiltersTCO = {
+    rap: '',
+    ilicito: '',
+    item: ''
+};
 
 
 // Load user info
@@ -98,63 +128,149 @@ function hideLoading() {
 async function loadOccurrences() {
     try {
         const result = await ipcRenderer.invoke('get-occurrences');
-        if (result.success) {
+        if (result.success && result.data) {
+            console.log('Dados recebidos do backend:', JSON.stringify(result.data, null, 2));
+            console.log('Total de itens recebidos:', result.data?.length || 0);
+            
             // Mapear dados do Google Sheets para a estrutura esperada
-            allOccurrences = result.data.map(row => {
+            allOccurrences = result.data.map((row, index) => {
+                console.log(`Mapeando ocorrência ${index}:`, JSON.stringify(row, null, 2));
+                
                 // Se já está na estrutura correta, retorna como está
                 if (row.ocorrencia && row.itemApreendido && row.proprietario && row.policial) {
+                    console.log(`Ocorrência ${index} já está na estrutura correta`);
                     return row;
                 }
                 
                 // Caso contrário, mapeia da estrutura do Google Sheets
-                return {
+                // Converter numeroGenesis se vier como data ISO ou formato incorreto
+                let numeroGenesis = row.numeroGenesis || row['Nº Genesis'] || row.numero_genesis || '';
+                
+                // Se vier como data ISO, tentar extrair ou usar um valor padrão
+                if (numeroGenesis && (numeroGenesis.includes('T') || numeroGenesis.includes('Z') || numeroGenesis instanceof Date)) {
+                    console.warn(`numeroGenesis veio como data ISO ou Date: ${numeroGenesis}`);
+                    // Tentar converter Date para string se for objeto Date
+                    if (numeroGenesis instanceof Date) {
+                        numeroGenesis = '';
+                    } else if (typeof numeroGenesis === 'string' && numeroGenesis.includes('T')) {
+                        numeroGenesis = '';
+                    }
+                }
+                
+                // Garantir que seja string e não vazio
+                numeroGenesis = String(numeroGenesis || '').trim();
+                
+                // Se ainda estiver vazio ou for 'N/A', tentar outras fontes
+                if (!numeroGenesis || numeroGenesis === 'N/A' || numeroGenesis === '') {
+                    // Tentar pegar do logRegistro ou gerar um valor temporário
+                    numeroGenesis = row.logRegistro ? String(row.logRegistro).substring(0, 10) : '';
+                }
+                
+                // Converter valores numéricos para strings quando necessário
+                const mapped = {
                     ocorrencia: {
-                        numeroGenesis: row.numeroGenesis || '',
-                        unidade: row.unidade || '',
+                        numeroGenesis: numeroGenesis || '',
+                        unidade: String(row.unidade || ''), // Mantém caracteres especiais como º
                         dataApreensao: row.dataApreensao || '',
-                        leiInfrigida: row.leiInfrigida || '',
-                        artigo: row.artigo || '',
-                        status: row.status || '',
-                        policialCondutor: row.policialCondutor || ''
+                        leiInfrigida: String(row.leiInfrigida || ''),
+                        artigo: String(row.artigo || ''),
+                        status: String(row.status || ''),
+                        numeroPje: String(row.numeroPje || '')
                     },
                     itemApreendido: {
-                        especie: row.especie || '',
-                        item: row.item || '',
-                        quantidade: row.quantidade || '',
-                        descricao: row.descricaoItem || '',
-                        ocorrencia: row.ocorrenciaItem || '',
-                        proprietario: row.proprietarioItem || '',
-                        policial: row.policialItem || ''
+                        especie: String(row.especie || ''),
+                        item: String(row.item || ''),
+                        quantidade: String(row.quantidade || ''),
+                        descricao: String(row.descricaoItem || ''),
+                        ocorrencia: String(row.ocorrenciaItem || ''),
+                        proprietario: String(row.proprietarioItem || ''),
+                        policial: String(row.policialItem || '')
                     },
                     proprietario: {
-                        nome: row.nomeProprietario || '',
-                        tipoDocumento: row.tipoDocumento || '',
-                        numeroDocumento: row.numeroDocumento || ''
+                        nome: String(row.nomeProprietario || ''),
+                        tipoDocumento: String(row.tipoDocumento || ''),
+                        numeroDocumento: String(row.numeroDocumento || '')
                     },
                     policial: {
-                        nome: row.nomePolicialCompleto || row.nomePolicial || '',
-                        matricula: row.matricula || '',
-                        graduacao: row.graduacao || '',
-                        unidade: row.unidadePolicial || ''
+                        nome: String(row.nomePolicialCompleto || row.nomePolicial || ''),
+                        matricula: String(row.matricula || ''),
+                        graduacao: String(row.graduacao || ''),
+                        unidade: String(row.unidadePolicial || '')
                     },
                     metadata: {
-                        registradoPor: row.registradoPor || '',
+                        registradoPor: String(row.registradoPor || ''),
                         dataRegistro: row.logRegistro || new Date().toISOString()
                     }
                 };
+                
+                console.log(`Ocorrência ${index} mapeada:`, JSON.stringify(mapped, null, 2));
+                return mapped;
             });
+            
+            console.log('Total de ocorrências mapeadas:', allOccurrences.length);
+            if (allOccurrences.length > 0) {
+                console.log('Estrutura da primeira ocorrência:', JSON.stringify(allOccurrences[0], null, 2));
+            }
             
             filteredOccurrences = [...allOccurrences];
             console.log('Ocorrências carregadas:', allOccurrences.length);
+            console.log('filteredOccurrences após cópia:', filteredOccurrences.length);
+            
+            // Verificar se há ocorrências válidas
+            const validOccurrences = allOccurrences.filter(occ => {
+                const hasOcorrencia = occ.ocorrencia && Object.keys(occ.ocorrencia).length > 0;
+                console.log('Ocorrência válida?', hasOcorrencia, occ);
+                return hasOcorrencia;
+            });
+            
+            console.log('Ocorrências válidas:', validOccurrences.length);
+            
+            if (validOccurrences.length > 0) {
+                allOccurrences = validOccurrences;
+            }
+            
+            // Aplicar filtros ativos se houver
+            applyOccurrenceFiltersOnLoad();
+            
             updateStats();
-            renderTable();
         } else {
             console.error('Erro ao carregar ocorrências:', result.message);
-            showEmptyState();
+            
+            // Mostrar mensagem de erro adequada ao usuário
+            if (result.errorType === 'rate_limit') {
+                customAlert.warning(
+                    'Há muitas solicitações sendo feitas ao Google Sheets. Por favor, aguarde alguns instantes e tente novamente clicando no botão "Atualizar".',
+                    'Google Sheets temporariamente indisponível'
+                );
+            } else if (result.message) {
+                customAlert.error('Erro ao carregar dados: ' + result.message);
+            } else {
+                customAlert.error('Erro ao carregar ocorrências do Google Sheets.');
+            }
+            
+            // Manter dados locais se existirem
+            if (allOccurrences.length > 0) {
+                console.log('Mantendo dados locais existentes');
+                filteredOccurrences = [...allOccurrences];
+                updateStats();
+                renderTable();
+            } else {
+                showEmptyState();
+            }
         }
     } catch (error) {
         console.error('Erro ao carregar ocorrências:', error);
-        showEmptyState();
+        customAlert.error('Erro ao carregar ocorrências: ' + error.message);
+        
+        // Manter dados locais se existirem
+        if (allOccurrences.length > 0) {
+            console.log('Mantendo dados locais existentes após erro');
+            filteredOccurrences = [...allOccurrences];
+            updateStats();
+            renderTable();
+        } else {
+            showEmptyState();
+        }
     }
 }
 
@@ -183,9 +299,6 @@ function updateStats() {
     
     // Update active users count from KeyAuth
     updateActiveUsers();
-    
-    // Update charts
-    updateCharts();
 }
 
 // Update active users count from KeyAuth
@@ -213,11 +326,16 @@ async function updateActiveUsers() {
 
 // Render table
 function renderTable() {
+    console.log('renderTable chamado. filteredOccurrences.length:', filteredOccurrences.length);
+    console.log('filteredOccurrences:', JSON.stringify(filteredOccurrences, null, 2));
+    
     if (filteredOccurrences.length === 0) {
+        console.log('Nenhuma ocorrência filtrada, mostrando estado vazio');
         showEmptyState();
         return;
     }
 
+    console.log('Ocultando estado vazio e renderizando tabela');
     hideEmptyState();
     occurrencesTableBody.innerHTML = '';
 
@@ -226,18 +344,26 @@ function renderTable() {
         const statusOptions = getStatusOptions(occ.itemApreendido?.especie);
         const currentStatus = occ.ocorrencia?.status || '';
         
+        // Garantir que numeroGenesis seja exibido corretamente
+        const numeroGenesis = (occ.ocorrencia?.numeroGenesis || '').toString().trim();
         row.innerHTML = `
-            <td><strong>${occ.ocorrencia?.numeroGenesis || 'N/A'}</strong></td>
+            <td><strong>${numeroGenesis || 'N/A'}</strong></td>
             <td>${occ.ocorrencia?.dataApreensao ? formatDate(occ.ocorrencia.dataApreensao) : 'N/A'}</td>
             <td>${occ.ocorrencia?.unidade || 'N/A'}</td>
             <td>${occ.proprietario?.nome || 'N/A'}</td>
             <td>
+                ${statusOptions.length > 0 ? `
                 <select class="status-dropdown" data-index="${index}" onchange="updateStatus(${index}, this.value)">
                     <option value="">Selecione...</option>
                     ${statusOptions.map(option => 
                         `<option value="${option}" ${currentStatus === option ? 'selected' : ''}>${option}</option>`
                     ).join('')}
                 </select>
+                ` : `
+                <select class="status-dropdown" data-index="${index}" disabled>
+                    <option value="">Selecione primeiro a espécie...</option>
+                </select>
+                `}
             </td>
             <td>
                 <div class="action-buttons">
@@ -293,314 +419,315 @@ function showModal(editable) {
 
     const modalTitle = document.getElementById('modalTitle');
     modalTitle.textContent = editable ? 'Editar Ocorrência' : 'Detalhes da Ocorrência';
-    
-    // Preencher formulário com dados da ocorrência
-    fillModalForm(editable);
+
+    modalBody.innerHTML = `
+        <div class="modal-form-section">
+            <h3 class="modal-section-title">Dados da Ocorrência</h3>
+            <div class="modal-form-grid">
+                <div class="modal-form-group">
+                    <label>Nº Genesis</label>
+                    <input type="text" id="edit-numeroGenesis" value="${currentOccurrence.ocorrencia.numeroGenesis}" ${!editable ? 'disabled' : ''}>
+                </div>
+                <div class="modal-form-group">
+                    <label>Unidade</label>
+                    ${editable ? `
+                    <select id="edit-unidade" ${!editable ? 'disabled' : ''}>
+                        <option value="">Selecione...</option>
+                        <option value="8º BPM" ${currentOccurrence.ocorrencia.unidade === '8º BPM' ? 'selected' : ''}>8º BPM</option>
+                        <option value="10º BPM" ${currentOccurrence.ocorrencia.unidade === '10º BPM' ? 'selected' : ''}>10º BPM</option>
+                        <option value="16º BPM" ${currentOccurrence.ocorrencia.unidade === '16º BPM' ? 'selected' : ''}>16º BPM</option>
+                    </select>
+                    ` : `
+                    <input type="text" id="edit-unidade" value="${currentOccurrence.ocorrencia.unidade}" disabled>
+                    `}
+                </div>
+                <div class="modal-form-group">
+                    <label>Data da Apreensão</label>
+                    <input type="text" id="edit-dataApreensao" value="${formatDateBR(currentOccurrence.ocorrencia.dataApreensao)}" ${!editable ? 'disabled' : ''}>
+                </div>
+                <div class="modal-form-group">
+                    <label>Lei Infringida</label>
+                    <input type="text" id="edit-leiInfrigida" value="${currentOccurrence.ocorrencia.leiInfrigida || ''}" ${!editable ? 'disabled' : ''}>
+                </div>
+                <div class="modal-form-group">
+                    <label>Artigo</label>
+                    <input type="text" id="edit-artigo" value="${currentOccurrence.ocorrencia.artigo || ''}" ${!editable ? 'disabled' : ''}>
+                </div>
+                <div class="modal-form-group">
+                    <label>Status</label>
+                    <select id="edit-status" ${!editable ? 'disabled' : ''}>
+                        <option value="">Selecione primeiro a espécie...</option>
+                    </select>
+                </div>
+                <div class="modal-form-group">
+                    <label>Nº PJE</label>
+                    <input type="text" id="edit-numeroPje" value="${currentOccurrence.ocorrencia.numeroPje || ''}" ${!editable ? 'disabled' : ''}>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-form-section">
+            <h3 class="modal-section-title">Item Apreendido</h3>
+            <div class="modal-form-grid">
+                <div class="modal-form-group">
+                    <label>Espécie</label>
+                    ${editable ? `
+                    <select id="edit-especie" ${!editable ? 'disabled' : ''}>
+                        <option value="">Selecione...</option>
+                        <option value="SUBSTÂNCIA" ${currentOccurrence.itemApreendido.especie === 'SUBSTÂNCIA' ? 'selected' : ''}>SUBSTÂNCIA</option>
+                        <option value="OBJETO" ${currentOccurrence.itemApreendido.especie === 'OBJETO' ? 'selected' : ''}>OBJETO</option>
+                        <option value="SIMULACRO" ${currentOccurrence.itemApreendido.especie === 'SIMULACRO' ? 'selected' : ''}>SIMULACRO</option>
+                        <option value="ARMA BRANCA" ${currentOccurrence.itemApreendido.especie === 'ARMA BRANCA' ? 'selected' : ''}>ARMA BRANCA</option>
+                    </select>
+                    ` : `
+                    <input type="text" id="edit-especie" value="${currentOccurrence.itemApreendido.especie || ''}" disabled>
+                    `}
+                </div>
+                <div class="modal-form-group">
+                    <label>Item</label>
+                    <input type="text" id="edit-item" value="${currentOccurrence.itemApreendido.item}" ${!editable ? 'disabled' : ''}>
+                </div>
+                <div class="modal-form-group">
+                    <label>Quantidade</label>
+                    <input type="text" id="edit-quantidade" value="${currentOccurrence.itemApreendido.quantidade}" ${!editable ? 'disabled' : ''}>
+                </div>
+                <div class="modal-form-group full-width">
+                    <label>Descrição</label>
+                    <textarea id="edit-descricao" rows="3" ${!editable ? 'disabled' : ''}>${currentOccurrence.itemApreendido.descricao || ''}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-form-section">
+            <h3 class="modal-section-title">Dados do Proprietário</h3>
+            <div class="modal-form-grid">
+                <div class="modal-form-group">
+                    <label>Nome Completo</label>
+                    <input type="text" id="edit-nomeProprietario" value="${currentOccurrence.proprietario.nome}" ${!editable ? 'disabled' : ''}>
+                </div>
+                <div class="modal-form-group">
+                    <label>Tipo de Documento</label>
+                    ${editable ? `
+                    <select id="edit-tipoDocumento" ${!editable ? 'disabled' : ''}>
+                        <option value="">Selecione...</option>
+                        <option value="CPF" ${currentOccurrence.proprietario.tipoDocumento === 'CPF' ? 'selected' : ''}>CPF</option>
+                        <option value="RG" ${currentOccurrence.proprietario.tipoDocumento === 'RG' ? 'selected' : ''}>RG</option>
+                    </select>
+                    ` : `
+                    <input type="text" id="edit-tipoDocumento" value="${currentOccurrence.proprietario.tipoDocumento}" disabled>
+                    `}
+                </div>
+                <div class="modal-form-group">
+                    <label>Nº Documento</label>
+                    <input type="text" id="edit-numeroDocumento" value="${currentOccurrence.proprietario.numeroDocumento}" ${!editable ? 'disabled' : ''}>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-form-section">
+            <h3 class="modal-section-title">Dados do Policial</h3>
+            <div class="modal-form-grid">
+                <div class="modal-form-group">
+                    <label>Nome Completo</label>
+                    <input type="text" id="edit-nomePolicial" value="${currentOccurrence.policial.nome}" ${!editable ? 'disabled' : ''}>
+                </div>
+                <div class="modal-form-group">
+                    <label>Matrícula</label>
+                    <input type="text" id="edit-matricula" value="${currentOccurrence.policial.matricula}" ${!editable ? 'disabled' : ''}>
+                </div>
+                <div class="modal-form-group">
+                    <label>Graduação</label>
+                    ${editable ? `
+                    <select id="edit-graduacao" ${!editable ? 'disabled' : ''}>
+                        <option value="">Selecione...</option>
+                        <option value="Soldado de 2ª Classe" ${currentOccurrence.policial.graduacao === 'Soldado de 2ª Classe' ? 'selected' : ''}>Soldado 2ª Classe</option>
+                        <option value="Soldado de 1ª Classe" ${currentOccurrence.policial.graduacao === 'Soldado de 1ª Classe' ? 'selected' : ''}>Soldado 1ª Classe</option>
+                        <option value="Cabo" ${currentOccurrence.policial.graduacao === 'Cabo' ? 'selected' : ''}>Cabo</option>
+                        <option value="3º Sargento" ${currentOccurrence.policial.graduacao === '3º Sargento' ? 'selected' : ''}>3º Sargento</option>
+                        <option value="2º Sargento" ${currentOccurrence.policial.graduacao === '2º Sargento' ? 'selected' : ''}>2º Sargento</option>
+                        <option value="1º Sargento" ${currentOccurrence.policial.graduacao === '1º Sargento' ? 'selected' : ''}>1º Sargento</option>
+                        <option value="Subtenente" ${currentOccurrence.policial.graduacao === 'Subtenente' ? 'selected' : ''}>Subtenente</option>
+                        <option value="Aspirante-a-Oficial" ${currentOccurrence.policial.graduacao === 'Aspirante-a-Oficial' ? 'selected' : ''}>Aspirante-a-Oficial</option>
+                        <option value="Segundo-Tenente" ${currentOccurrence.policial.graduacao === 'Segundo-Tenente' ? 'selected' : ''}>Segundo-Tenente</option>
+                        <option value="Primeiro-Tenente" ${currentOccurrence.policial.graduacao === 'Primeiro-Tenente' ? 'selected' : ''}>Primeiro-Tenente</option>
+                        <option value="Capitão" ${currentOccurrence.policial.graduacao === 'Capitão' ? 'selected' : ''}>Capitão</option>
+                        <option value="Major" ${currentOccurrence.policial.graduacao === 'Major' ? 'selected' : ''}>Major</option>
+                        <option value="Tenente-Coronel" ${currentOccurrence.policial.graduacao === 'Tenente-Coronel' ? 'selected' : ''}>Tenente-Coronel</option>
+                        <option value="Coronel" ${currentOccurrence.policial.graduacao === 'Coronel' ? 'selected' : ''}>Coronel</option>
+                    </select>
+                    ` : `
+                    <input type="text" id="edit-graduacao" value="${currentOccurrence.policial.graduacao || ''}" disabled>
+                    `}
+                </div>
+                <div class="modal-form-group">
+                    <label>Unidade</label>
+                    <input type="text" id="edit-unidadePolicial" value="${currentOccurrence.policial.unidade}" ${!editable ? 'disabled' : ''}>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-form-section">
+            <h3 class="modal-section-title">Informações do Registro</h3>
+            <div class="modal-form-grid">
+                <div class="modal-form-group">
+                    <label>Registrado Por</label>
+                    <input type="text" value="${currentOccurrence.metadata.registradoPor}" disabled>
+                </div>
+                <div class="modal-form-group">
+                    <label>Data do Registro</label>
+                    <input type="text" value="${formatDateTime(currentOccurrence.metadata.dataRegistro)}" disabled>
+                </div>
+            </div>
+        </div>
+    `;
 
     btnDelete.style.display = 'none'; // Sempre oculto no modal de edição
     btnSaveEdit.style.display = editable ? 'inline-flex' : 'none';
     
     viewModal.classList.add('active');
     
-    // Configurar lógica dinâmica do modal de edição se estiver em modo editável
+    // Converter sigla antiga para nome completo no campo Lei Infringida
+    if (typeof converterSiglaParaNome === 'function') {
+        const leiInput = document.getElementById('edit-leiInfrigida');
+        if (leiInput && leiInput.value) {
+            const nomeCompleto = converterSiglaParaNome(leiInput.value);
+            if (nomeCompleto !== leiInput.value) {
+                leiInput.value = nomeCompleto;
+            }
+        }
+    }
+    
+    // Configurar lógica do campo Status baseado na Espécie (igual ao formulário principal)
     if (editable) {
-        setupModalEditLogic();
-    }
-}
-
-// Função para preencher o formulário do modal
-function fillModalForm(editable) {
-    // Dados da Ocorrência
-    document.getElementById('modalNumeroGenesis').value = currentOccurrence.ocorrencia?.numeroGenesis || '';
-    document.getElementById('modalUnidade').value = currentOccurrence.ocorrencia?.unidade || '';
-    document.getElementById('modalDataApreensao').value = formatDateBR(currentOccurrence.ocorrencia?.dataApreensao) || '';
-    document.getElementById('modalLeiInfrigida').value = currentOccurrence.ocorrencia?.leiInfrigida || '';
-    document.getElementById('modalArtigo').value = currentOccurrence.ocorrencia?.artigo || '';
-    document.getElementById('modalStatus').value = currentOccurrence.ocorrencia?.status || '';
-    document.getElementById('modalNumeroPje').value = currentOccurrence.ocorrencia?.numeroPje === '-' ? '' : (currentOccurrence.ocorrencia?.numeroPje || '');
-
-    // Item Apreendido
-    document.getElementById('modalEspecie').value = currentOccurrence.itemApreendido?.especie || '';
-    document.getElementById('modalItem').value = currentOccurrence.itemApreendido?.item || '';
-    document.getElementById('modalQuantidade').value = currentOccurrence.itemApreendido?.quantidade || '';
-    document.getElementById('modalDescricaoItem').value = currentOccurrence.itemApreendido?.descricao || '';
-
-    // Proprietário
-    document.getElementById('modalNomeProprietario').value = currentOccurrence.proprietario?.nome || '';
-    document.getElementById('modalTipoDocumento').value = currentOccurrence.proprietario?.tipoDocumento || '';
-    document.getElementById('modalNumeroDocumento').value = currentOccurrence.proprietario?.numeroDocumento || '';
-
-    // Policial
-    document.getElementById('modalNomePolicial').value = currentOccurrence.policial?.nome || '';
-    document.getElementById('modalMatricula').value = currentOccurrence.policial?.matricula || '';
-    document.getElementById('modalGraduacao').value = currentOccurrence.policial?.graduacao || '';
-    document.getElementById('modalUnidadePolicial').value = currentOccurrence.policial?.unidade || '';
-
-    // Informações do Registro
-    document.getElementById('modalRegistradoPor').value = currentOccurrence.metadata?.registradoPor || '';
-    document.getElementById('modalDataRegistro').value = formatDateTime(currentOccurrence.metadata?.dataRegistro) || '';
-
-    // Desabilitar campos se não for editável
-    const formElements = document.querySelectorAll('#modalOccurrenceForm input, #modalOccurrenceForm select, #modalOccurrenceForm textarea');
-    formElements.forEach(element => {
-        if (element.id === 'modalRegistradoPor' || element.id === 'modalDataRegistro') {
-            element.disabled = true; // Sempre desabilitados
-        } else {
-            element.disabled = !editable;
-        }
-    });
-
-    // Se estiver em modo editável, inicializar o status baseado na espécie
-    if (editable) {
-        setTimeout(() => {
-            const especieSelect = document.getElementById('modalEspecie');
-            if (especieSelect && especieSelect.value) {
-                // Disparar evento change para carregar as opções de status
-                especieSelect.dispatchEvent(new Event('change'));
-            }
-        }, 100);
-    }
-}
-
-// Configurar lógica dinâmica do modal de edição
-function setupModalEditLogic() {
-    const especieSelect = document.getElementById('modalEspecie');
-    const statusSelect = document.getElementById('modalStatus');
-    const tipoDocumentoSelect = document.getElementById('modalTipoDocumento');
-    const numeroDocumentoInput = document.getElementById('modalNumeroDocumento');
-    const dataApreensaoInput = document.getElementById('modalDataApreensao');
-    const numeroGenesisInput = document.getElementById('modalNumeroGenesis');
-    
-    // === LÓGICA DO STATUS BASEADO NA ESPÉCIE ===
-    if (especieSelect && statusSelect) {
-        // Função para atualizar opções do status baseado na espécie
-        function updateStatusOptions() {
-            const especieSelecionada = especieSelect.value;
-            const statusAtual = currentOccurrence.ocorrencia.status || '';
-            
-            // Limpar opções atuais
-            statusSelect.innerHTML = '';
-            
-            if (!especieSelecionada) {
-                statusSelect.innerHTML = '<option value="">Selecione primeiro a espécie...</option>';
-                statusSelect.disabled = true;
-                return;
-            }
-            
-            // Adicionar opção padrão
-            statusSelect.innerHTML = '<option value="">Selecione...</option>';
-            statusSelect.disabled = false;
-            
-            // Status específicos baseados na espécie
-            if (especieSelecionada === 'SUBSTÂNCIA') {
-                // Status para substâncias
-                statusSelect.innerHTML += '<option value="SECRIMPO">SECRIMPO</option>';
-                statusSelect.innerHTML += '<option value="INSTITUTO DE CRIMINALÍSTICA">INSTITUTO DE CRIMINALÍSTICA</option>';
-                statusSelect.innerHTML += '<option value="DOP">DOP</option>';
-                statusSelect.innerHTML += '<option value="DESTRUIÇÃO">DESTRUIÇÃO</option>';
-            } else if (especieSelecionada === 'OBJETO' || especieSelecionada === 'SIMULACRO' || especieSelecionada === 'ARMA BRANCA') {
-                // Status para objetos, simulacros e armas brancas
-                statusSelect.innerHTML += '<option value="SECRIMPO">SECRIMPO</option>';
-                statusSelect.innerHTML += '<option value="CEGOC">CEGOC</option>';
-                statusSelect.innerHTML += '<option value="IC">IC</option>';
-            } else {
-                // Status gerais para outras espécies
-                statusSelect.innerHTML += '<option value="SECRIMPO">SECRIMPO</option>';
-                statusSelect.innerHTML += '<option value="CEGOC">CEGOC</option>';
-                statusSelect.innerHTML += '<option value="IC">IC</option>';
-            }
-            
-            // Restaurar valor atual se ainda for válido
-            if (statusAtual) {
-                const option = statusSelect.querySelector(`option[value="${statusAtual}"]`);
-                if (option) {
-                    statusSelect.value = statusAtual;
-                }
-            }
-        }
+        const especieSelect = document.getElementById('edit-especie');
+        const statusSelect = document.getElementById('edit-status');
         
-        // Event listener para mudança na espécie
-        especieSelect.addEventListener('change', updateStatusOptions);
-        
-        // Event listener para limpar status quando "Selecione..." for escolhido
-        statusSelect.addEventListener('change', function() {
-            if (this.value === '') {
-                this.value = '';
-            }
-        });
-        
-        // Inicializar com a espécie atual
-        updateStatusOptions();
-    }
-    
-    // === MÁSCARAS PARA DOCUMENTOS ===
-    if (tipoDocumentoSelect && numeroDocumentoInput) {
-        // Função para formatar CPF: 000.000.000-00
-        function formatCPF(value) {
-            value = value.replace(/\D/g, '');
-            if (value.length > 11) value = value.substring(0, 11);
-            
-            if (value.length <= 3) {
-                return value;
-            } else if (value.length <= 6) {
-                return value.replace(/(\d{3})(\d{1,3})/, '$1.$2');
-            } else if (value.length <= 9) {
-                return value.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
-            } else {
-                return value.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
-            }
-        }
-        
-        // Função para formatar RG: 0.000.000 (7 dígitos) ou 00.000.000-0 (9 dígitos)
-        function formatRG(value) {
-            value = value.replace(/\D/g, '');
-            if (value.length > 9) value = value.substring(0, 9);
-            
-            // Formato com 7 dígitos: 0.000.000
-            if (value.length <= 7) {
-                if (value.length <= 1) {
-                    return value;
-                } else if (value.length <= 4) {
-                    return value.replace(/(\d{1})(\d{1,3})/, '$1.$2');
-                } else {
-                    return value.replace(/(\d{1})(\d{3})(\d{1,3})/, '$1.$2.$3');
-                }
-            }
-            // Formato com 8-9 dígitos: 00.000.000-0
-            else {
-                if (value.length <= 2) {
-                    return value;
-                } else if (value.length <= 5) {
-                    return value.replace(/(\d{2})(\d{1,3})/, '$1.$2');
-                } else if (value.length <= 8) {
-                    return value.replace(/(\d{2})(\d{3})(\d{1,3})/, '$1.$2.$3');
-                } else {
-                    return value.replace(/(\d{2})(\d{3})(\d{3})(\d{1})/, '$1.$2.$3-$4');
-                }
-            }
-        }
-        
-        // Aplicar máscara no campo de documento
-        numeroDocumentoInput.addEventListener('input', function(e) {
-            const tipo = tipoDocumentoSelect.value;
-            let value = e.target.value;
-            
-            if (tipo === 'CPF') {
-                e.target.value = formatCPF(value);
-            } else if (tipo === 'RG') {
-                e.target.value = formatRG(value);
-            }
-        });
-        
-        // Limpar e reaplicar máscara quando mudar o tipo de documento
-        tipoDocumentoSelect.addEventListener('change', function(e) {
-            const value = numeroDocumentoInput.value.replace(/\D/g, '');
-            
-            if (e.target.value === 'CPF') {
-                numeroDocumentoInput.value = formatCPF(value);
-                numeroDocumentoInput.placeholder = '000.000.000-00';
-                numeroDocumentoInput.maxLength = 14;
-            } else if (e.target.value === 'RG') {
-                numeroDocumentoInput.value = formatRG(value);
-                numeroDocumentoInput.placeholder = '0.000.000 ou 00.000.000-0';
-                numeroDocumentoInput.maxLength = 12;
-            } else {
-                numeroDocumentoInput.value = value;
-                numeroDocumentoInput.placeholder = '';
-                numeroDocumentoInput.removeAttribute('maxLength');
-            }
-        });
-    }
-    
-    // === MÁSCARA PARA DATA ===
-    if (dataApreensaoInput) {
-        // Máscara para data no formato brasileiro (dd/mm/aaaa)
-        function applyDateMask(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            
-            if (value.length >= 2) {
-                value = value.substring(0, 2) + '/' + value.substring(2);
-            }
-            if (value.length >= 5) {
-                value = value.substring(0, 5) + '/' + value.substring(5, 9);
-            }
-            
-            e.target.value = value;
-        }
-        
-        dataApreensaoInput.addEventListener('input', applyDateMask);
-        
-        // Atualizar Nº Genesis com o ano automaticamente
-        function updateGenesisWithYear() {
-            const dataApreensao = dataApreensaoInput.value;
-            
-            // Verificar se a data está completa (dd/mm/aaaa)
-            if (dataApreensao.length === 10 && isValidDate(dataApreensao)) {
-                const year = dataApreensao.split('/')[2]; // Extrair o ano
-                const currentValue = numeroGenesisInput.value;
+        if (especieSelect && statusSelect) {
+            // Função para atualizar opções do Status baseado na Espécie
+            const updateStatusOptions = () => {
+                const especieSelecionada = especieSelect.value;
+                // Usar o valor atual do select ou o valor da ocorrência
+                const currentStatus = statusSelect.value || currentOccurrence.ocorrencia.status || '';
                 
-                // Remover ano anterior se existir (formato: xxxx-yyyy)
-                const valueWithoutYear = currentValue.replace(/-\d{4}$/, '');
+                // Definir opções válidas para cada espécie
+                const statusOptionsSubstancia = ['SECRIMPO', 'INSTITUTO DE CRIMINALISTICA', 'DOP', 'DESTRUIÇÃO'];
+                const statusOptionsOutros = ['SECRIMPO', 'CEGOC', 'IC'];
                 
-                // Adicionar o novo ano
-                if (valueWithoutYear) {
-                    numeroGenesisInput.value = valueWithoutYear + '-' + year;
+                // Limpar opções atuais
+                statusSelect.innerHTML = '';
+                
+                if (!especieSelecionada) {
+                    statusSelect.innerHTML = '<option value="">Selecione primeiro a espécie...</option>';
+                    statusSelect.disabled = true;
+                    statusSelect.value = '';
+                    return;
                 }
+                
+                // Adicionar opção padrão
+                statusSelect.innerHTML = '<option value="">Selecione...</option>';
+                statusSelect.disabled = false;
+                
+                // Determinar quais opções usar baseado na espécie
+                const validStatusOptions = especieSelecionada === 'SUBSTÂNCIA' 
+                    ? statusOptionsSubstancia 
+                    : statusOptionsOutros;
+                
+                // Verificar se o status atual é válido para a espécie atual
+                const isCurrentStatusValid = validStatusOptions.includes(currentStatus);
+                
+                // Adicionar opções de status
+                validStatusOptions.forEach(option => {
+                    const isSelected = currentStatus === option && isCurrentStatusValid;
+                    statusSelect.innerHTML += `<option value="${option}"${isSelected ? ' selected' : ''}>${option}</option>`;
+                });
+                
+                // Se o status atual não for válido para a espécie, limpar a seleção
+                // Mas manter o valor se for válido
+                if (currentStatus && !isCurrentStatusValid) {
+                    statusSelect.value = '';
+                } else if (currentStatus && isCurrentStatusValid) {
+                    // Garantir que o valor correto esteja selecionado
+                    statusSelect.value = currentStatus;
+                }
+            };
+            
+            // Atualizar opções quando a espécie mudar
+            especieSelect.addEventListener('change', function() {
+                // Apenas atualizar as opções de status, sem alterar outros campos
+                updateStatusOptions();
+                // Atualizar apenas a espécie no objeto currentOccurrence (não tocar em item, quantidade, descrição)
+                if (currentOccurrence) {
+                    currentOccurrence.itemApreendido.especie = especieSelect.value;
+                }
+            });
+            
+            // Atualizar opções inicialmente
+            updateStatusOptions();
+        }
+        
+        // Adicionar conversão para maiúsculas em tempo real nos campos de texto
+        const textFields = [
+            'edit-numeroGenesis',
+            'edit-dataApreensao',
+            'edit-leiInfrigida',
+            'edit-artigo',
+            'edit-numeroPje',
+            'edit-item',
+            'edit-quantidade',
+            'edit-descricao',
+            'edit-nomeProprietario',
+            'edit-numeroDocumento',
+            'edit-nomePolicial',
+            'edit-matricula',
+            'edit-unidadePolicial'
+        ];
+        
+        textFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                // Converter ao digitar
+                field.addEventListener('input', function(e) {
+                    const input = e.target;
+                    const cursorPosition = input.selectionStart;
+                    const originalValue = input.value;
+                    const upperValue = originalValue.toUpperCase();
+                    
+                    if (originalValue !== upperValue) {
+                        input.value = upperValue;
+                        input.setSelectionRange(cursorPosition, cursorPosition);
+                    }
+                });
+                
+                // Converter ao colar
+                field.addEventListener('paste', function(e) {
+                    setTimeout(() => {
+                        const input = e.target;
+                        const cursorPosition = input.selectionStart;
+                        const originalValue = input.value;
+                        const upperValue = originalValue.toUpperCase();
+                        
+                        if (originalValue !== upperValue) {
+                            input.value = upperValue;
+                            input.setSelectionRange(cursorPosition, cursorPosition);
+                        }
+                    }, 0);
+                });
             }
-        }
+        });
         
-        dataApreensaoInput.addEventListener('input', updateGenesisWithYear);
-        
-        if (numeroGenesisInput) {
-            numeroGenesisInput.addEventListener('input', updateGenesisWithYear);
+        // Converter sigla para nome completo no campo Lei Infringida quando perder o foco
+        const leiInputEdit = document.getElementById('edit-leiInfrigida');
+        if (leiInputEdit && typeof converterSiglaParaNome === 'function') {
+            leiInputEdit.addEventListener('blur', function() {
+                if (leiInputEdit.value) {
+                    const nomeCompleto = converterSiglaParaNome(leiInputEdit.value);
+                    if (nomeCompleto !== leiInputEdit.value) {
+                        leiInputEdit.value = nomeCompleto;
+                    }
+                }
+            });
         }
     }
-    
-    // === FUNÇÃO AUXILIAR PARA VALIDAR DATA ===
-    function isValidDate(dateString) {
-        const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-        const match = dateString.match(regex);
-        
-        if (!match) return false;
-        
-        const day = parseInt(match[1], 10);
-        const month = parseInt(match[2], 10);
-        const year = parseInt(match[3], 10);
-        
-        if (month < 1 || month > 12) return false;
-        if (day < 1 || day > 31) return false;
-        
-        const date = new Date(year, month - 1, day);
-        return date.getFullYear() === year && 
-               date.getMonth() === month - 1 && 
-               date.getDate() === day;
-    }
-}
-
-// Validar data no formato brasileiro (para modal de edição)
-function isValidDateEdit(dateString) {
-    const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-    const match = dateString.match(regex);
-    
-    if (!match) return false;
-    
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10);
-    const year = parseInt(match[3], 10);
-    
-    if (month < 1 || month > 12) return false;
-    if (day < 1 || day > 31) return false;
-    
-    const date = new Date(year, month - 1, day);
-    return date.getFullYear() === year && 
-           date.getMonth() === month - 1 && 
-           date.getDate() === day;
-}
-
-// Converter data brasileira para ISO (yyyy-mm-dd) - para modal de edição
-function brDateToISO(brDate) {
-    const [day, month, year] = brDate.split('/');
-    return `${year}-${month}-${day}`;
 }
 
 // Close modal
@@ -614,47 +741,55 @@ function closeModal() {
 async function saveEdit() {
     if (!currentOccurrence) return;
 
-    // Validar datas antes de enviar
-    const dataApreensao = document.getElementById('modalDataApreensao').value;
+    // Guardar o número Genesis original para identificação
+    let numeroGenesisOriginal = currentOccurrence.ocorrencia.numeroGenesis || '';
+    // Se o original for 'N/A' ou vazio, tentar usar o valor atual do campo
+    if (!numeroGenesisOriginal || numeroGenesisOriginal === 'N/A' || numeroGenesisOriginal === '') {
+        numeroGenesisOriginal = document.getElementById('edit-numeroGenesis').value.trim() || '';
+    }
     
-    if (!isValidDateEdit(dataApreensao)) {
-        customAlert.error('Data de apreensão inválida. Use o formato dd/mm/aaaa');
+    const numeroGenesisNovo = document.getElementById('edit-numeroGenesis').value.trim();
+
+    // Validar se o Genesis não está vazio
+    if (!numeroGenesisNovo || numeroGenesisNovo === '') {
+        customAlert.error('O campo Nº Genesis é obrigatório e não pode estar vazio.');
+        document.getElementById('edit-numeroGenesis').focus();
         return;
     }
 
-    // Guardar o número Genesis original para identificação
-    const numeroGenesisOriginal = currentOccurrence.ocorrencia.numeroGenesis;
-    const numeroGenesisNovo = document.getElementById('modalNumeroGenesis').value;
+    // Função auxiliar para converter strings para maiúsculas
+    function toUpperCase(value) {
+        return typeof value === 'string' ? value.toUpperCase() : value;
+    }
 
     const updatedData = {
         id: currentOccurrence.id,
         numeroGenesisOriginal: numeroGenesisOriginal, // Para identificar a linha no Google Sheets
         ocorrencia: {
-            numeroGenesis: numeroGenesisNovo.toUpperCase(),
-            unidade: document.getElementById('modalUnidade').value.toUpperCase(),
-            dataApreensao: brDateToISO(document.getElementById('modalDataApreensao').value),
-            leiInfrigida: document.getElementById('modalLeiInfrigida').value.toUpperCase(),
-            artigo: document.getElementById('modalArtigo').value.toUpperCase(),
-            status: (document.getElementById('modalStatus').value || '').toUpperCase(),
-            numeroPje: document.getElementById('modalNumeroPje').value || '-',
-            policialCondutor: '' // Campo removido do novo formulário
+            numeroGenesis: toUpperCase(numeroGenesisNovo),
+            unidade: document.getElementById('edit-unidade').value,
+            dataApreensao: brDateToISO(document.getElementById('edit-dataApreensao').value),
+            leiInfrigida: toUpperCase(document.getElementById('edit-leiInfrigida').value),
+            artigo: toUpperCase(document.getElementById('edit-artigo').value),
+            status: document.getElementById('edit-status').value,
+            numeroPje: toUpperCase(document.getElementById('edit-numeroPje').value || '')
         },
         itemApreendido: {
-            especie: document.getElementById('modalEspecie').value.toUpperCase(),
-            item: document.getElementById('modalItem').value.toUpperCase(),
-            quantidade: document.getElementById('modalQuantidade').value.toUpperCase(),
-            descricao: document.getElementById('modalDescricaoItem').value.toUpperCase()
+            especie: document.getElementById('edit-especie').value,
+            item: toUpperCase(document.getElementById('edit-item').value),
+            quantidade: toUpperCase(document.getElementById('edit-quantidade').value),
+            descricao: toUpperCase(document.getElementById('edit-descricao').value || '')
         },
         proprietario: {
-            nome: document.getElementById('modalNomeProprietario').value.toUpperCase(),
-            tipoDocumento: document.getElementById('modalTipoDocumento').value.toUpperCase(),
-            numeroDocumento: document.getElementById('modalNumeroDocumento').value.toUpperCase()
+            nome: toUpperCase(document.getElementById('edit-nomeProprietario').value),
+            tipoDocumento: document.getElementById('edit-tipoDocumento').value,
+            numeroDocumento: toUpperCase(document.getElementById('edit-numeroDocumento').value)
         },
         policial: {
-            nome: document.getElementById('modalNomePolicial').value.toUpperCase(),
-            matricula: document.getElementById('modalMatricula').value.toUpperCase(),
-            graduacao: document.getElementById('modalGraduacao').value.toUpperCase(),
-            unidade: document.getElementById('modalUnidadePolicial').value.toUpperCase()
+            nome: toUpperCase(document.getElementById('edit-nomePolicial').value),
+            matricula: toUpperCase(document.getElementById('edit-matricula').value),
+            graduacao: document.getElementById('edit-graduacao').value,
+            unidade: toUpperCase(document.getElementById('edit-unidadePolicial').value)
         },
         metadata: currentOccurrence.metadata
     };
@@ -672,12 +807,18 @@ async function saveEdit() {
             closeModal();
             loadOccurrences();
         } else {
-            customAlert.error('Erro ao atualizar: ' + result.message);
+            // Se for erro temporário, não reverter a mudança
+            if (result.temporary) {
+                customAlert.warning(result.message || 'Erro temporário ao atualizar. Os dados foram salvos localmente.');
+                // Não fechar o modal e não recarregar, mantendo as alterações visíveis
+            } else {
+                customAlert.error('Erro ao atualizar: ' + result.message);
+            }
         }
     } catch (error) {
         console.error('Erro ao atualizar:', error);
         hideLoading();
-        customAlert.error('Erro ao atualizar ocorrência');
+        customAlert.error('Erro ao atualizar ocorrência: ' + error.message);
     }
 }
 
@@ -746,38 +887,109 @@ async function printTermoApreensao() {
     }
 }
 
-// Export to Excel - Abrir modal de filtros
+// Export to Excel - Abre modal de filtros
 function exportToExcel() {
-    const modal = document.getElementById('exportFilterModal');
-    modal.style.display = 'flex';
+    const exportFilterModal = document.getElementById('exportFilterModal');
+    if (exportFilterModal) {
+        // Limpar filtros anteriores
+        document.getElementById('exportDataInicial').value = '';
+        document.getElementById('exportDataFinal').value = '';
+        
+        // Limpar checkboxes de status
+        document.querySelectorAll('.export-status-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        // Limpar checkboxes de espécie
+        document.querySelectorAll('.export-especie-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        
+        exportFilterModal.classList.add('active');
+    }
 }
 
-// Aplicar filtros e exportar
-async function applyFiltersAndExport() {
-    const filters = getExportFilters();
+// Função para aplicar filtros e exportar
+async function performExportWithFilters() {
+    const dataInicial = document.getElementById('exportDataInicial').value;
+    const dataFinal = document.getElementById('exportDataFinal').value;
     
-    // Log dos filtros aplicados para debug
-    console.log('Filtros aplicados:', filters);
-    console.log('Total de ocorrências antes do filtro:', allOccurrences.length);
+    // Obter status selecionados (checkboxes)
+    const selectedStatuses = Array.from(document.querySelectorAll('.export-status-checkbox:checked'))
+        .map(checkbox => checkbox.value);
     
-    const filteredData = applyExportFilters(allOccurrences, filters);
+    // Obter espécies selecionadas (checkboxes)
+    const selectedEspecies = Array.from(document.querySelectorAll('.export-especie-checkbox:checked'))
+        .map(checkbox => checkbox.value);
     
-    console.log('Total de ocorrências após filtro:', filteredData.length);
+    // Fechar modal
+    const exportFilterModal = document.getElementById('exportFilterModal');
+    if (exportFilterModal) {
+        exportFilterModal.classList.remove('active');
+    }
     
+    // Aplicar filtros
+    let filteredData = [...allOccurrences];
+    
+    // Filtro por data
+    if (dataInicial || dataFinal) {
+        filteredData = filteredData.filter(occ => {
+            const dataApreensao = occ.ocorrencia.dataApreensao;
+            if (!dataApreensao) return false;
+            
+            try {
+                // Converter data brasileira (dd/mm/yyyy) para Date
+                const [day, month, year] = dataApreensao.split('/');
+                if (!day || !month || !year) return false;
+                
+                const occDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                occDate.setHours(0, 0, 0, 0);
+                
+                if (dataInicial) {
+                    const initDate = new Date(dataInicial + 'T00:00:00');
+                    if (occDate < initDate) return false;
+                }
+                
+                if (dataFinal) {
+                    const finalDate = new Date(dataFinal + 'T23:59:59');
+                    if (occDate > finalDate) return false;
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Erro ao processar data:', error);
+                return false;
+            }
+        });
+    }
+    
+    // Filtro por status (múltiplos)
+    if (selectedStatuses.length > 0) {
+        filteredData = filteredData.filter(occ => {
+            return selectedStatuses.includes(occ.ocorrencia.status);
+        });
+    }
+    
+    // Filtro por espécie (múltiplas)
+    if (selectedEspecies.length > 0) {
+        filteredData = filteredData.filter(occ => {
+            return selectedEspecies.includes(occ.itemApreendido?.especie);
+        });
+    }
+    
+    // Verificar se há dados para exportar
     if (filteredData.length === 0) {
-        customAlert.warning('Nenhuma ocorrência encontrada com os filtros aplicados.<br><br>Verifique se os filtros estão corretos ou se há dados disponíveis.');
+        customAlert.error('Nenhuma ocorrência encontrada com os filtros selecionados.');
         return;
     }
     
-    // Fechar modal
-    closeExportModal();
-    
-    showLoading('Exportando dados', `Gerando arquivo Excel com ${filteredData.length} ocorrências...`);
+    // Exportar
+    showLoading('Exportando dados', `Gerando arquivo Excel com ${filteredData.length} ocorrência(s)...`);
     try {
         const result = await ipcRenderer.invoke('export-occurrences', filteredData);
         hideLoading();
         if (result.success) {
-            customAlert.success(`Arquivo Excel exportado com sucesso!<br><br><strong>Total de registros:</strong> ${filteredData.length}<br><strong>Local:</strong> ${result.filePath}`);
+            customAlert.success(`Arquivo Excel exportado com sucesso!<br><br><strong>Ocorrências exportadas:</strong> ${filteredData.length}<br><strong>Local:</strong> ${result.filePath}`);
         } else {
             customAlert.error('Erro ao exportar: ' + result.message);
         }
@@ -788,260 +1000,196 @@ async function applyFiltersAndExport() {
     }
 }
 
-// Obter filtros do modal
-function getExportFilters() {
-    return {
-        dataInicio: document.getElementById('exportDataInicio').value,
-        dataFim: document.getElementById('exportDataFim').value,
-        tiposItem: {
-            substancia: document.getElementById('filterSubstancia').checked,
-            objeto: document.getElementById('filterObjeto').checked,
-            simulacro: document.getElementById('filterSimulacro').checked,
-            armaBranca: document.getElementById('filterArmaBranca').checked
-        },
-        status: {
-            // Status para substância
-            secrimpo: document.getElementById('filterStatusSecrimpo').checked,
-            institutoIC: document.getElementById('filterStatusIC').checked,
-            dop: document.getElementById('filterStatusDOP').checked,
-            destruicao: document.getElementById('filterStatusDestruicao').checked,
-            // Status para objeto
-            secrimpoObj: document.getElementById('filterStatusSecrimpoObj').checked,
-            cegoc: document.getElementById('filterStatusCEGOC').checked,
-            icObj: document.getElementById('filterStatusICObj').checked
-        }
-    };
-}
+// ==================== FUNCIONALIDADE DE FILTROS ====================
 
-// Aplicar filtros aos dados
-function applyExportFilters(data, filters) {
-    let filteredCount = 0;
-    let dateFilterCount = 0;
-    let typeFilterCount = 0;
-    let statusFilterCount = 0;
-    
-    const result = data.filter((occ, index) => {
-        try {
-            // Log da primeira ocorrência para debug
-            if (index === 0) {
-                console.log('Estrutura da primeira ocorrência:', occ);
-            }
-            // Filtro por data
-            if (filters.dataInicio || filters.dataFim) {
-                let dataOcorrencia = '';
-                
-                // Tentar extrair data da ocorrência
-                if (occ.ocorrencia?.dataApreensao) {
-                    dataOcorrencia = occ.ocorrencia.dataApreensao;
-                } else if (occ.dataApreensao) {
-                    dataOcorrencia = occ.dataApreensao;
-                } else if (occ['Data Apreensão']) {
-                    dataOcorrencia = occ['Data Apreensão'];
-                }
-                
-                if (dataOcorrencia) {
-                    // Converter para formato de data comparável
-                    let dataOccDate;
-                    
-                    // Tentar diferentes formatos de data
-                    if (dataOcorrencia.includes('/')) {
-                        // Formato dd/mm/yyyy
-                        const parts = dataOcorrencia.split('/');
-                        if (parts.length === 3) {
-                            dataOccDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-                        }
-                    } else if (dataOcorrencia.includes('-')) {
-                        // Formato yyyy-mm-dd ou dd-mm-yyyy
-                        if (dataOcorrencia.length === 10) {
-                            const parts = dataOcorrencia.split('-');
-                            if (parts[0].length === 4) {
-                                // yyyy-mm-dd
-                                dataOccDate = new Date(dataOcorrencia);
-                            } else {
-                                // dd-mm-yyyy
-                                dataOccDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-                            }
-                        }
-                    } else {
-                        // Tentar parsing direto
-                        dataOccDate = new Date(dataOcorrencia);
-                    }
-                    
-                    if (dataOccDate && !isNaN(dataOccDate)) {
-                        if (filters.dataInicio) {
-                            const dataInicio = new Date(filters.dataInicio);
-                            if (dataOccDate < dataInicio) return false;
-                        }
-                        
-                        if (filters.dataFim) {
-                            const dataFim = new Date(filters.dataFim);
-                            dataFim.setHours(23, 59, 59, 999); // Incluir todo o dia final
-                            if (dataOccDate > dataFim) return false;
-                        }
-                    }
-                }
-            }
-            
-            // Filtro por tipo de item (espécie)
-            let especie = '';
-            if (occ.itemApreendido?.especie) {
-                especie = occ.itemApreendido.especie.toLowerCase();
-            } else if (occ.especie) {
-                especie = occ.especie.toLowerCase();
-            } else if (occ['Espécie']) {
-                especie = occ['Espécie'].toLowerCase();
-            } else if (occ.itemApreendido?.item) {
-                especie = occ.itemApreendido.item.toLowerCase();
-            } else if (occ.item) {
-                especie = occ.item.toLowerCase();
-            } else if (occ['Item']) {
-                especie = occ['Item'].toLowerCase();
-            }
-            
-            // Verificar se pelo menos um tipo está selecionado
-            const algumTipoSelecionado = filters.tiposItem.substancia || 
-                                       filters.tiposItem.objeto || 
-                                       filters.tiposItem.simulacro || 
-                                       filters.tiposItem.armaBranca;
-            
-            if (especie && algumTipoSelecionado) {
-                const tiposAtivos = [];
-                if (filters.tiposItem.substancia) tiposAtivos.push('substancia', 'substância', 'droga', 'entorpecente');
-                if (filters.tiposItem.objeto) tiposAtivos.push('objeto', 'celular', 'eletrônico', 'aparelho');
-                if (filters.tiposItem.simulacro) tiposAtivos.push('simulacro', 'replica', 'imitação');
-                if (filters.tiposItem.armaBranca) tiposAtivos.push('arma branca', 'arma', 'faca', 'canivete', 'punhal');
-                
-                const encontrou = tiposAtivos.some(tipo => especie.includes(tipo));
-                if (!encontrou) return false;
-            }
-            
-            // Filtro por status
-            let status = '';
-            if (occ.ocorrencia?.status) {
-                status = occ.ocorrencia.status.toLowerCase();
-            } else if (occ.status) {
-                status = occ.status.toLowerCase();
-            } else if (occ['Status']) {
-                status = occ['Status'].toLowerCase();
-            }
-            
-            // Verificar se pelo menos um status está selecionado
-            const algumStatusSelecionado = filters.status.secrimpo || 
-                                         filters.status.institutoIC || 
-                                         filters.status.dop || 
-                                         filters.status.destruicao ||
-                                         filters.status.secrimpoObj || 
-                                         filters.status.cegoc || 
-                                         filters.status.icObj;
-            
-            if (status && algumStatusSelecionado) {
-                const statusAtivos = [];
-                
-                // Status para substância
-                if (filters.status.secrimpo) statusAtivos.push('secrimpo');
-                if (filters.status.institutoIC) statusAtivos.push('instituto de criminalística', 'instituto criminalística', 'ic');
-                if (filters.status.dop) statusAtivos.push('dop');
-                if (filters.status.destruicao) statusAtivos.push('destruição', 'destruicao');
-                
-                // Status para objeto
-                if (filters.status.secrimpoObj) statusAtivos.push('secrimpo');
-                if (filters.status.cegoc) statusAtivos.push('cegoc');
-                if (filters.status.icObj) statusAtivos.push('ic');
-                
-                const encontrou = statusAtivos.some(tipo => status.includes(tipo));
-                if (!encontrou) return false;
-            }
-            
-            filteredCount++;
-            return true;
-        } catch (error) {
-            console.error('Erro ao aplicar filtro na ocorrência:', error, occ);
-            return true; // Incluir em caso de erro
+// Abrir modal de filtros de ocorrências
+if (filterBtn) {
+    filterBtn.addEventListener('click', () => {
+        populateStatusOptions();
+        restoreFilterValues();
+        if (filterModal) {
+            filterModal.classList.add('active');
         }
     });
-    
-    // Log das estatísticas de filtros
-    console.log('Estatísticas de filtros:');
-    console.log('- Total processado:', data.length);
-    console.log('- Total filtrado:', result.length);
-    console.log('- Filtros aplicados:', {
-        data: !!(filters.dataInicio || filters.dataFim),
-        tipos: !!(filters.tiposItem.substancia || filters.tiposItem.objeto || filters.tiposItem.simulacro || filters.tiposItem.armaBranca),
-        status: !!(filters.status.secrimpo || filters.status.institutoIC || filters.status.dop || filters.status.destruicao || filters.status.secrimpoObj || filters.status.cegoc || filters.status.icObj)
-    });
-    
-    return result;
 }
 
 // Fechar modal de filtros
-function closeExportModal() {
-    const modal = document.getElementById('exportFilterModal');
-    modal.style.display = 'none';
+if (filterModalClose) {
+    filterModalClose.addEventListener('click', () => {
+        if (filterModal) filterModal.classList.remove('active');
+    });
 }
 
-// Resetar filtros
-function resetExportFilters() {
-    // Resetar filtros de data
-    document.getElementById('exportDataInicio').value = '';
-    document.getElementById('exportDataFim').value = '';
+// Preencher opções de status e unidade dinamicamente
+function populateStatusOptions() {
+    const statusSelect = document.getElementById('filterStatus');
+    const unidadeSelect = document.getElementById('filterUnidade');
     
-    // Resetar filtros de tipo de item
-    document.getElementById('filterSubstancia').checked = true;
-    document.getElementById('filterObjeto').checked = true;
-    document.getElementById('filterSimulacro').checked = true;
-    document.getElementById('filterArmaBranca').checked = true;
-    
-    // Resetar filtros de status para substância
-    document.getElementById('filterStatusSecrimpo').checked = true;
-    document.getElementById('filterStatusIC').checked = true;
-    document.getElementById('filterStatusDOP').checked = true;
-    document.getElementById('filterStatusDestruicao').checked = true;
-    
-    // Resetar filtros de status para objeto
-    document.getElementById('filterStatusSecrimpoObj').checked = true;
-    document.getElementById('filterStatusCEGOC').checked = true;
-    document.getElementById('filterStatusICObj').checked = true;
-}
-
-// Search
-searchInput.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase().trim();
-    
-    if (!query) {
-        filteredOccurrences = [...allOccurrences];
-    } else {
-        filteredOccurrences = allOccurrences.filter(occ => {
-            try {
-                // Tentar diferentes possíveis estruturas de dados
-                let numeroGenesis = '';
-                
-                if (occ.ocorrencia?.numeroGenesis) {
-                    numeroGenesis = occ.ocorrencia.numeroGenesis;
-                }
-                else if (occ.numeroGenesis) {
-                    numeroGenesis = occ.numeroGenesis;
-                }
-                else if (occ['Nº Genesis']) {
-                    numeroGenesis = occ['Nº Genesis'];
-                }
-                else if (occ['numeroGenesis']) {
-                    numeroGenesis = occ['numeroGenesis'];
-                }
-                else if (occ['numero_genesis']) {
-                    numeroGenesis = occ['numero_genesis'];
-                }
-                
-                const numeroGenesisLower = (numeroGenesis || '').toString().toLowerCase();
-                return numeroGenesisLower.includes(query);
-            } catch (error) {
-                console.error('Erro ao filtrar ocorrência:', error, occ);
-                return false;
-            }
+    // Preencher Status
+    if (statusSelect) {
+        // Obter todos os status únicos das ocorrências
+        const allStatus = [...new Set(allOccurrences.map(occ => occ.ocorrencia?.status).filter(Boolean))];
+        
+        // Limpar opções existentes (exceto "Todos os status")
+        statusSelect.innerHTML = '<option value="">Todos os status</option>';
+        
+        // Adicionar opções
+        allStatus.forEach(status => {
+            const option = document.createElement('option');
+            option.value = status;
+            option.textContent = status;
+            statusSelect.appendChild(option);
         });
     }
     
+    // Preencher Unidade
+    if (unidadeSelect) {
+        // Obter todas as unidades únicas das ocorrências
+        const allUnidades = [...new Set(allOccurrences.map(occ => occ.ocorrencia?.unidade).filter(Boolean))];
+        
+        // Limpar opções existentes (exceto "Todas as unidades")
+        unidadeSelect.innerHTML = '<option value="">Todas as unidades</option>';
+        
+        // Adicionar opções
+        allUnidades.forEach(unidade => {
+            const option = document.createElement('option');
+            option.value = unidade;
+            option.textContent = unidade;
+            unidadeSelect.appendChild(option);
+        });
+    }
+}
+
+// Restaurar valores dos filtros
+function restoreFilterValues() {
+    const filterNumeroGenesis = document.getElementById('filterNumeroGenesis');
+    const filterDataInicial = document.getElementById('filterDataInicial');
+    const filterDataFinal = document.getElementById('filterDataFinal');
+    const filterUnidade = document.getElementById('filterUnidade');
+    const filterStatus = document.getElementById('filterStatus');
+    
+    if (filterNumeroGenesis) filterNumeroGenesis.value = activeFilters.numeroGenesis || '';
+    if (filterDataInicial) filterDataInicial.value = activeFilters.dataInicial || '';
+    if (filterDataFinal) filterDataFinal.value = activeFilters.dataFinal || '';
+    if (filterUnidade) filterUnidade.value = activeFilters.unidade || '';
+    if (filterStatus) filterStatus.value = activeFilters.status || '';
+}
+
+// Aplicar filtros de ocorrências
+if (btnApplyFilters) {
+    btnApplyFilters.addEventListener('click', () => {
+        applyOccurrenceFilters();
+        if (filterModal) filterModal.classList.remove('active');
+    });
+}
+
+// Limpar filtros de ocorrências
+if (btnClearFilters) {
+    btnClearFilters.addEventListener('click', () => {
+        clearOccurrenceFilters();
+    });
+}
+
+function applyOccurrenceFilters() {
+    const filterNumeroGenesis = document.getElementById('filterNumeroGenesis');
+    const filterDataInicial = document.getElementById('filterDataInicial');
+    const filterDataFinal = document.getElementById('filterDataFinal');
+    const filterUnidade = document.getElementById('filterUnidade');
+    const filterStatus = document.getElementById('filterStatus');
+    
+    // Salvar filtros ativos
+    activeFilters = {
+        numeroGenesis: filterNumeroGenesis ? filterNumeroGenesis.value.trim() : '',
+        dataInicial: filterDataInicial ? filterDataInicial.value : '',
+        dataFinal: filterDataFinal ? filterDataFinal.value : '',
+        unidade: filterUnidade ? filterUnidade.value : '',
+        status: filterStatus ? filterStatus.value : ''
+    };
+    
+    // Aplicar filtros
+    filteredOccurrences = allOccurrences.filter(occ => {
+        // Filtro por Nº Genesis
+        if (activeFilters.numeroGenesis) {
+            const numeroGenesis = (occ.ocorrencia?.numeroGenesis || '').toString().toLowerCase();
+            if (!numeroGenesis.includes(activeFilters.numeroGenesis.toLowerCase())) {
+                return false;
+            }
+        }
+        
+        // Filtro por Data
+        if (activeFilters.dataInicial || activeFilters.dataFinal) {
+            const occDate = occ.ocorrencia?.dataApreensao ? new Date(occ.ocorrencia.dataApreensao) : null;
+            if (occDate) {
+                if (activeFilters.dataInicial) {
+                    const dataInicial = new Date(activeFilters.dataInicial);
+                    dataInicial.setHours(0, 0, 0, 0);
+                    if (occDate < dataInicial) {
+                        return false;
+                    }
+                }
+                if (activeFilters.dataFinal) {
+                    const dataFinal = new Date(activeFilters.dataFinal);
+                    dataFinal.setHours(23, 59, 59, 999);
+                    if (occDate > dataFinal) {
+                        return false;
+                    }
+                }
+            } else if (activeFilters.dataInicial || activeFilters.dataFinal) {
+                return false;
+            }
+        }
+        
+        // Filtro por Unidade
+        if (activeFilters.unidade && occ.ocorrencia?.unidade !== activeFilters.unidade) {
+            return false;
+        }
+        
+        // Filtro por Status
+        if (activeFilters.status && occ.ocorrencia?.status !== activeFilters.status) {
+            return false;
+        }
+        
+        return true;
+    });
+    
     renderTable();
-});
+}
+
+function clearOccurrenceFilters() {
+    activeFilters = {
+        numeroGenesis: '',
+        dataInicial: '',
+        dataFinal: '',
+        unidade: '',
+        status: ''
+    };
+    
+    const filterNumeroGenesis = document.getElementById('filterNumeroGenesis');
+    const filterDataInicial = document.getElementById('filterDataInicial');
+    const filterDataFinal = document.getElementById('filterDataFinal');
+    const filterUnidade = document.getElementById('filterUnidade');
+    const filterStatus = document.getElementById('filterStatus');
+    
+    if (filterNumeroGenesis) filterNumeroGenesis.value = '';
+    if (filterDataInicial) filterDataInicial.value = '';
+    if (filterDataFinal) filterDataFinal.value = '';
+    if (filterUnidade) filterUnidade.value = '';
+    if (filterStatus) filterStatus.value = '';
+    
+    filteredOccurrences = [...allOccurrences];
+    renderTable();
+}
+
+// Aplicar filtros quando carregar ocorrências
+function applyOccurrenceFiltersOnLoad() {
+    if (activeFilters.numeroGenesis || activeFilters.dataInicial || activeFilters.dataFinal || 
+        activeFilters.unidade || activeFilters.status) {
+        applyOccurrenceFilters();
+    } else {
+        filteredOccurrences = [...allOccurrences];
+        renderTable();
+    }
+}
 
 // Tab navigation
 tabDashboard.addEventListener('click', () => {
@@ -1093,6 +1241,92 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// Verificar atualizações manualmente
+if (checkUpdatesBtn) {
+    checkUpdatesBtn.addEventListener('click', async () => {
+        showLoading('Verificando atualizações', 'Buscando novas versões...');
+        try {
+            const result = await ipcRenderer.invoke('check-updates-manual');
+            hideLoading();
+            
+            if (result && result.error) {
+                customAlert.error('Erro ao verificar atualizações: ' + result.error);
+            } else if (result && result.available) {
+                currentUpdateInfo = result;
+                showUpdateModal(result);
+            } else if (result && !result.available) {
+                customAlert.success('Você está usando a versão mais recente do aplicativo!');
+            } else {
+                customAlert.info('Não foi possível verificar atualizações no momento. Tente novamente mais tarde.');
+            }
+        } catch (error) {
+            console.error('Erro ao verificar atualizações:', error);
+            hideLoading();
+            customAlert.error('Erro ao verificar atualizações: ' + error.message);
+        }
+    });
+}
+
+// Modal de atualização
+let currentUpdateInfo = null;
+
+if (updateModalClose) {
+    updateModalClose.addEventListener('click', () => {
+        if (updateModal) updateModal.classList.remove('active');
+    });
+}
+
+if (btnUpdateLater) {
+    btnUpdateLater.addEventListener('click', () => {
+        if (updateModal) updateModal.classList.remove('active');
+    });
+}
+
+if (btnDownloadUpdate) {
+    btnDownloadUpdate.addEventListener('click', async () => {
+        if (currentUpdateInfo && currentUpdateInfo.downloadUrl) {
+            try {
+                // Abrir link de download no navegador padrão
+                const result = await ipcRenderer.invoke('open-external-url', currentUpdateInfo.downloadUrl);
+                if (result.success) {
+                    if (updateModal) updateModal.classList.remove('active');
+                    customAlert.info('O link de download foi aberto no seu navegador. Após baixar, instale a nova versão para atualizar o aplicativo.');
+                } else {
+                    customAlert.error('Erro ao abrir link de download: ' + (result.error || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro ao abrir link de download:', error);
+                customAlert.error('Erro ao abrir link de download.');
+            }
+        }
+    });
+}
+
+// Listener para receber notificação de atualização do main process
+ipcRenderer.on('update-available', (event, updateInfo) => {
+    if (updateInfo && updateInfo.available) {
+        currentUpdateInfo = updateInfo;
+        showUpdateModal(updateInfo);
+    }
+});
+
+// Função para mostrar modal de atualização
+function showUpdateModal(updateInfo) {
+    if (currentVersionDisplay) {
+        currentVersionDisplay.textContent = updateInfo.currentVersion || 'Desconhecida';
+    }
+    if (latestVersionDisplay) {
+        latestVersionDisplay.textContent = updateInfo.latestVersion || 'Desconhecida';
+    }
+    if (releaseNotesContent) {
+        releaseNotesContent.textContent = updateInfo.releaseNotes || 'Sem notas de versão disponíveis.';
+    }
+    
+    if (updateModal) {
+        updateModal.classList.add('active');
+    }
+}
+
 // Logout
 logoutBtn.addEventListener('click', () => {
     customAlert.confirm(
@@ -1122,6 +1356,56 @@ printModalClose.addEventListener('click', closePrintModal);
 btnCancelPrint.addEventListener('click', closePrintModal);
 btnPrintTermoApreensao.addEventListener('click', printTermoApreensao);
 
+// Modal de filtros de exportação
+if (exportFilterModalClose) {
+    exportFilterModalClose.addEventListener('click', () => {
+        exportFilterModal.classList.remove('active');
+    });
+}
+if (btnCancelExportFilter) {
+    btnCancelExportFilter.addEventListener('click', () => {
+        exportFilterModal.classList.remove('active');
+    });
+}
+if (btnConfirmExportFilter) {
+    btnConfirmExportFilter.addEventListener('click', performExportWithFilters);
+}
+
+// Modal de filtros de exportação de TCOs
+if (exportTCOFilterModalClose) {
+    exportTCOFilterModalClose.addEventListener('click', () => {
+        exportTCOFilterModal.classList.remove('active');
+    });
+}
+if (btnCancelExportTCOFilter) {
+    btnCancelExportTCOFilter.addEventListener('click', () => {
+        exportTCOFilterModal.classList.remove('active');
+    });
+}
+if (btnConfirmExportTCOFilter) {
+    btnConfirmExportTCOFilter.addEventListener('click', performExportTCOsWithFilters);
+}
+
+// Adicionar event listeners para checkboxes para atualizar visual
+document.addEventListener('DOMContentLoaded', () => {
+    // Atualizar visual dos checkboxes quando mudarem
+    const updateCheckboxVisual = (checkbox) => {
+        const option = checkbox.closest('.checkbox-option');
+        if (checkbox.checked) {
+            option.classList.add('checked');
+        } else {
+            option.classList.remove('checked');
+        }
+    };
+    
+    // Adicionar listeners para todos os checkboxes
+    document.querySelectorAll('.export-status-checkbox, .export-especie-checkbox, .export-ilicito-checkbox, .export-tco-status-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', () => updateCheckboxVisual(checkbox));
+        // Inicializar estado visual
+        updateCheckboxVisual(checkbox);
+    });
+});
+
 // Refresh button
 refreshBtn.addEventListener('click', async () => {
     refreshBtn.classList.add('loading');
@@ -1143,18 +1427,6 @@ refreshBtn.addEventListener('click', async () => {
 
 // Export button
 exportBtn.addEventListener('click', exportToExcel);
-
-// Modal de filtros de exportação - Event listeners
-document.getElementById('closeExportModal').addEventListener('click', closeExportModal);
-document.getElementById('applyFiltersBtn').addEventListener('click', applyFiltersAndExport);
-document.getElementById('resetFiltersBtn').addEventListener('click', resetExportFilters);
-
-// Fechar modal clicando fora
-document.getElementById('exportFilterModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('exportFilterModal')) {
-        closeExportModal();
-    }
-});
 
 // Empty state button
 btnNovaOcorrenciaEmpty.addEventListener('click', () => {
@@ -1214,1193 +1486,9 @@ function hideEmptyState() {
     emptyState.style.display = 'none';
 }
 
-// Update charts
-function updateCharts() {
-    // Visão Geral - 3 gráficos principais
-    createLineChart();          // Evolução Temporal
-    createPieChartUnidade();    // Distribuição por Unidades
-    createPieChartItens();      // Tipos de Itens Apreendidos
-}
-
-// Create pie chart - Occurrences over custom date range or last 30 days
-function createLineChart() {
-    const ctx = document.getElementById('lineChart');
-    if (!ctx) return;
-    
-    // Destroy existing chart
-    if (lineChart) {
-        lineChart.destroy();
-    }
-    
-    // Determine date range
-    let startDate, endDate;
-    if (customDateRange) {
-        startDate = customDateRange.startDate;
-        endDate = customDateRange.endDate;
-    } else {
-        // Default: last 30 days
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 29);
-    }
-    
-    const daysDiff = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-    const monthNames = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-    
-    let labels = [];
-    let counts = [];
-    
-    // Se período maior que 60 dias, agrupar por mês
-    if (daysDiff > 60) {
-        const monthCounts = {};
-        
-        // Filtrar ocorrências no período
-        const filteredOccs = allOccurrences.filter(occ => {
-            if (!occ.metadata?.dataRegistro) return false;
-            const occDate = new Date(occ.metadata.dataRegistro);
-            return occDate >= startDate && occDate <= endDate;
-        });
-        
-        // Contar por mês
-        filteredOccs.forEach(occ => {
-            const occDate = new Date(occ.metadata.dataRegistro);
-            const monthKey = `${monthNames[occDate.getMonth()]}/${occDate.getFullYear()}`;
-            monthCounts[monthKey] = (monthCounts[monthKey] || 0) + 1;
-        });
-        
-        // Ordenar por data
-        const sortedMonths = Object.entries(monthCounts).sort((a, b) => {
-            const [monthA, yearA] = a[0].split('/');
-            const [monthB, yearB] = b[0].split('/');
-            const dateA = new Date(yearA, monthNames.indexOf(monthA));
-            const dateB = new Date(yearB, monthNames.indexOf(monthB));
-            return dateA - dateB;
-        });
-        
-        labels = sortedMonths.map(([month]) => month);
-        counts = sortedMonths.map(([, count]) => count);
-    } else {
-        // Período curto: agrupar por dia
-        for (let i = 0; i <= daysDiff; i++) {
-            const date = new Date(startDate);
-            date.setDate(date.getDate() + i);
-            const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            labels.push(dateStr);
-            
-            const count = allOccurrences.filter(occ => {
-                if (!occ.metadata?.dataRegistro) return false;
-                const occDate = new Date(occ.metadata.dataRegistro);
-                return occDate.toDateString() === date.toDateString();
-            }).length;
-            counts.push(count);
-        }
-    }
-    
-    const total = counts.reduce((a, b) => a + b, 0);
-    
-    // Update total display
-    const totalElement = document.getElementById('totalEvolutionOccurrences');
-    if (totalElement) {
-        totalElement.textContent = total;
-    }
-    
-    const colors = ['#279b4d', '#071d49', '#fac709', '#c33', '#00bcd4', '#ff9800', '#9c27b0', '#4caf50', '#f44336', '#2196f3', '#ff5722', '#795548'];
-    
-    lineChart = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: counts,
-                backgroundColor: colors.slice(0, labels.length),
-                borderColor: '#fff',
-                borderWidth: 2,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: '#071d49',
-                    padding: 16,
-                    titleFont: {
-                        size: 0
-                    },
-                    bodyFont: {
-                        size: 16,
-                        weight: 'bold'
-                    },
-                    bodyColor: '#fff',
-                    borderColor: '#fac709',
-                    borderWidth: 2,
-                    displayColors: false,
-                    callbacks: {
-                        title: function() {
-                            return '';
-                        },
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Create pie chart - Distribuição por Unidades
-function createPieChartUnidade() {
-    const ctx = document.getElementById('pieChartUnidade');
-    if (!ctx) return;
-    
-    // Destroy existing chart
-    if (pieChartUnidade) {
-        pieChartUnidade.destroy();
-    }
-    
-    // Contar por unidade (todos os dados)
-    const unitCounts = {};
-    allOccurrences.forEach(occ => {
-        const unit = occ.ocorrencia?.unidade || 'Não especificado';
-        unitCounts[unit] = (unitCounts[unit] || 0) + 1;
-    });
-    
-    // Ordenar por quantidade
-    const sortedUnits = Object.entries(unitCounts)
-        .sort((a, b) => b[1] - a[1]);
-    
-    const labels = sortedUnits.map(([unit]) => unit);
-    const counts = sortedUnits.map(([, count]) => count);
-    const total = counts.reduce((a, b) => a + b, 0);
-    
-    // Update total display
-    const totalElement = document.getElementById('totalUnidadeOccurrences');
-    if (totalElement) {
-        totalElement.textContent = total;
-    }
-    
-    const colors = ['#071d49', '#279b4d', '#fac709', '#c33', '#00bcd4', '#ff9800', '#9c27b0', '#4caf50', '#f44336', '#2196f3', '#ff5722', '#795548'];
-    
-    pieChartUnidade = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: counts,
-                backgroundColor: colors.slice(0, labels.length),
-                borderColor: '#fff',
-                borderWidth: 2,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: '#071d49',
-                    padding: 16,
-                    titleFont: {
-                        size: 0
-                    },
-                    bodyFont: {
-                        size: 16,
-                        weight: 'bold'
-                    },
-                    bodyColor: '#fff',
-                    borderColor: '#fac709',
-                    borderWidth: 2,
-                    displayColors: false,
-                    callbacks: {
-                        title: function() {
-                            return '';
-                        },
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Create pie chart - Tipos de Itens Apreendidos
-function createPieChartItens() {
-    const ctx = document.getElementById('pieChartItens');
-    if (!ctx) return;
-    
-    // Destroy existing chart
-    if (pieChartItens) {
-        pieChartItens.destroy();
-    }
-    
-    // Contar por espécie (todos os dados)
-    const itemCounts = {};
-    allOccurrences.forEach(occ => {
-        const especie = occ.itemApreendido?.especie || 'Não especificado';
-        itemCounts[especie] = (itemCounts[especie] || 0) + 1;
-    });
-    
-    // Ordenar por quantidade
-    const sortedItems = Object.entries(itemCounts)
-        .sort((a, b) => b[1] - a[1]);
-    
-    const labels = sortedItems.map(([item]) => item);
-    const counts = sortedItems.map(([, count]) => count);
-    const total = counts.reduce((a, b) => a + b, 0);
-    
-    // Update total display
-    const totalElement = document.getElementById('totalItensOccurrences');
-    if (totalElement) {
-        totalElement.textContent = total;
-    }
-    
-    const colors = ['#071d49', '#279b4d', '#fac709', '#c33', '#00bcd4', '#ff9800', '#9c27b0', '#4caf50', '#f44336', '#2196f3', '#ff5722', '#795548'];
-    
-    pieChartItens = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: counts,
-                backgroundColor: colors.slice(0, labels.length),
-                borderColor: '#fff',
-                borderWidth: 2,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: '#071d49',
-                    padding: 16,
-                    titleFont: {
-                        size: 0
-                    },
-                    bodyFont: {
-                        size: 16,
-                        weight: 'bold'
-                    },
-                    bodyColor: '#fff',
-                    borderColor: '#fac709',
-                    borderWidth: 2,
-                    displayColors: false,
-                    callbacks: {
-                        title: function() {
-                            return '';
-                        },
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Create bar chart - Occurrences by day (last 7 days)
-function createBarChartDay() {
-    const ctx = document.getElementById('barChartDay');
-    if (!ctx) return;
-    
-    // Destroy existing chart
-    if (barChartDay) {
-        barChartDay.destroy();
-    }
-    
-    // Get last 7 days data
-    const last7Days = [];
-    const counts = [];
-    const now = new Date();
-    
-    for (let i = 6; i >= 0; i--) {
-        const date = new Date(now);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        last7Days.push(dateStr);
-        
-        const count = allOccurrences.filter(occ => {
-            if (!occ.metadata?.dataRegistro) return false;
-            const occDate = new Date(occ.metadata.dataRegistro);
-            return occDate.toDateString() === date.toDateString();
-        }).length;
-        counts.push(count);
-    }
-    
-    const total = counts.reduce((a, b) => a + b, 0);
-    
-    // Update total display
-    const totalElement = document.getElementById('totalDayOccurrences');
-    if (totalElement) {
-        totalElement.textContent = total;
-    }
-    
-    barChartDay = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: last7Days,
-            datasets: [{
-                label: 'Ocorrências',
-                data: counts,
-                backgroundColor: '#279b4d',
-                borderColor: '#279b4d',
-                borderWidth: 1,
-                borderRadius: 6,
-                hoverBackgroundColor: '#1f7d3d'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: '#071d49',
-                    padding: 12,
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
-                    borderColor: '#fac709',
-                    borderWidth: 1
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1,
-                        color: '#666'
-                    },
-                    grid: {
-                        color: '#f0f2f5'
-                    }
-                },
-                x: {
-                    ticks: {
-                        color: '#666'
-                    },
-                    grid: {
-                        display: false
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Create pie chart - Occurrences by unit with date filter
-function createPieChartUnidadePeriodo() {
-    const ctx = document.getElementById('pieChartUnidadePeriodo');
-    if (!ctx) return;
-    
-    // Destroy existing chart
-    if (pieChartUnidadePeriodo) {
-        pieChartUnidadePeriodo.destroy();
-    }
-    
-    // Determine date range
-    let startDate, endDate;
-    if (customDateRangeUnidade) {
-        startDate = customDateRangeUnidade.startDate;
-        endDate = customDateRangeUnidade.endDate;
-    } else {
-        // Default: last 30 days
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 29);
-    }
-    
-    // Filtrar ocorrências no período
-    const filteredOccs = allOccurrences.filter(occ => {
-        if (!occ.metadata?.dataRegistro) return false;
-        const occDate = new Date(occ.metadata.dataRegistro);
-        return occDate >= startDate && occDate <= endDate;
-    });
-    
-    // Contar por unidade
-    const unitCounts = {};
-    filteredOccs.forEach(occ => {
-        const unit = occ.ocorrencia?.unidade || 'Não especificado';
-        unitCounts[unit] = (unitCounts[unit] || 0) + 1;
-    });
-    
-    // Ordenar por quantidade
-    const sortedUnits = Object.entries(unitCounts)
-        .sort((a, b) => b[1] - a[1]);
-    
-    const labels = sortedUnits.map(([unit]) => unit);
-    const counts = sortedUnits.map(([, count]) => count);
-    const total = counts.reduce((a, b) => a + b, 0);
-    
-    // Update total display
-    const totalElement = document.getElementById('totalUnidadePeriodo');
-    if (totalElement) {
-        totalElement.textContent = total;
-    }
-    
-    const colors = ['#071d49', '#279b4d', '#fac709', '#c33', '#00bcd4', '#ff9800', '#9c27b0', '#4caf50', '#f44336', '#2196f3', '#ff5722', '#795548'];
-    
-    pieChartUnidadePeriodo = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: counts,
-                backgroundColor: colors.slice(0, labels.length),
-                borderColor: '#fff',
-                borderWidth: 2,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: '#071d49',
-                    padding: 16,
-                    titleFont: {
-                        size: 0
-                    },
-                    bodyFont: {
-                        size: 16,
-                        weight: 'bold'
-                    },
-                    bodyColor: '#fff',
-                    borderColor: '#fac709',
-                    borderWidth: 2,
-                    displayColors: false,
-                    callbacks: {
-                        title: function() {
-                            return '';
-                        },
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Create pie chart - Item types with date filter
-function createPieChartItensPeriodo() {
-    const ctx = document.getElementById('pieChartItensPeriodo');
-    if (!ctx) return;
-    
-    // Destroy existing chart
-    if (pieChartItensPeriodo) {
-        pieChartItensPeriodo.destroy();
-    }
-    
-    // Determine date range
-    let startDate, endDate;
-    if (customDateRangeItens) {
-        startDate = customDateRangeItens.startDate;
-        endDate = customDateRangeItens.endDate;
-    } else {
-        // Default: last 30 days
-        endDate = new Date();
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 29);
-    }
-    
-    // Filtrar ocorrências no período
-    const filteredOccs = allOccurrences.filter(occ => {
-        if (!occ.metadata?.dataRegistro) return false;
-        const occDate = new Date(occ.metadata.dataRegistro);
-        return occDate >= startDate && occDate <= endDate;
-    });
-    
-    // Contar por tipo de item
-    const itemCounts = {};
-    filteredOccs.forEach(occ => {
-        const item = occ.itemApreendido?.item || 'Não especificado';
-        itemCounts[item] = (itemCounts[item] || 0) + 1;
-    });
-    
-    // Ordenar por quantidade
-    const sortedItems = Object.entries(itemCounts)
-        .sort((a, b) => b[1] - a[1]);
-    
-    const labels = sortedItems.map(([item]) => item);
-    const counts = sortedItems.map(([, count]) => count);
-    const total = counts.reduce((a, b) => a + b, 0);
-    
-    // Update total display
-    const totalElement = document.getElementById('totalItensPeriodo');
-    if (totalElement) {
-        totalElement.textContent = total;
-    }
-    
-    const colors = ['#fac709', '#279b4d', '#071d49', '#c33', '#00bcd4', '#ff9800', '#9c27b0', '#4caf50', '#f44336', '#2196f3', '#ff5722', '#795548'];
-    
-    pieChartItensPeriodo = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: counts,
-                backgroundColor: colors.slice(0, labels.length),
-                borderColor: '#fff',
-                borderWidth: 2,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: '#071d49',
-                    padding: 16,
-                    titleFont: {
-                        size: 0
-                    },
-                    bodyFont: {
-                        size: 16,
-                        weight: 'bold'
-                    },
-                    bodyColor: '#fff',
-                    borderColor: '#fac709',
-                    borderWidth: 2,
-                    displayColors: false,
-                    callbacks: {
-                        title: function() {
-                            return '';
-                        },
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Create pie chart - Occurrences by unit by month
-function createPieChartUnidadeMes() {
-    const ctx = document.getElementById('pieChartUnidadeMes');
-    if (!ctx) return;
-    
-    if (pieChartUnidadeMes) {
-        pieChartUnidadeMes.destroy();
-    }
-    
-    const unitCounts = {};
-    allOccurrences.forEach(occ => {
-        const unit = occ.ocorrencia?.unidade || 'Não especificado';
-        unitCounts[unit] = (unitCounts[unit] || 0) + 1;
-    });
-    
-    const sortedUnits = Object.entries(unitCounts).sort((a, b) => b[1] - a[1]);
-    const labels = sortedUnits.map(([unit]) => unit);
-    const data = sortedUnits.map(([, count]) => count);
-    const total = data.reduce((a, b) => a + b, 0);
-    
-    const totalElement = document.getElementById('totalUnidadeMes');
-    if (totalElement) totalElement.textContent = total;
-    
-    const colors = ['#071d49', '#279b4d', '#fac709', '#c33', '#00bcd4', '#ff9800', '#9c27b0', '#4caf50'];
-    
-    pieChartUnidadeMes = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors.slice(0, labels.length),
-                borderColor: '#fff',
-                borderWidth: 2,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#071d49',
-                    padding: 16,
-                    titleFont: {
-                        size: 0
-                    },
-                    bodyFont: {
-                        size: 16,
-                        weight: 'bold'
-                    },
-                    bodyColor: '#fff',
-                    borderColor: '#fac709',
-                    borderWidth: 2,
-                    displayColors: false,
-                    callbacks: {
-                        title: function() {
-                            return '';
-                        },
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Create bar chart - Occurrences by unit by day (last 7 days)
-function createBarChartUnidadeDia() {
-    const ctx = document.getElementById('barChartUnidadeDia');
-    if (!ctx) return;
-    
-    if (barChartUnidadeDia) {
-        barChartUnidadeDia.destroy();
-    }
-    
-    // Filtrar ocorrências dos últimos 7 dias
-    const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    
-    const last7DaysOccs = allOccurrences.filter(occ => {
-        if (!occ.metadata?.dataRegistro) return false;
-        const occDate = new Date(occ.metadata.dataRegistro);
-        return occDate >= sevenDaysAgo && occDate <= now;
-    });
-    
-    // Agrupar por unidade
-    const unitCounts = {};
-    last7DaysOccs.forEach(occ => {
-        const unit = occ.ocorrencia?.unidade || 'Não especificado';
-        unitCounts[unit] = (unitCounts[unit] || 0) + 1;
-    });
-    
-    const sortedUnits = Object.entries(unitCounts).sort((a, b) => b[1] - a[1]);
-    const labels = sortedUnits.map(([unit]) => unit);
-    const counts = sortedUnits.map(([, count]) => count);
-    const total = counts.reduce((a, b) => a + b, 0);
-    
-    const totalElement = document.getElementById('totalUnidadeDia');
-    if (totalElement) totalElement.textContent = total;
-    
-    const colors = ['#071d49', '#279b4d', '#fac709', '#c33', '#00bcd4', '#ff9800', '#9c27b0', '#4caf50'];
-    
-    barChartUnidadeDia = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Ocorrências',
-                data: counts,
-                backgroundColor: colors.slice(0, labels.length),
-                borderRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1, color: '#666' }, grid: { color: '#f0f2f5' } },
-                x: { ticks: { color: '#666' }, grid: { display: false } }
-            }
-        }
-    });
-}
-
-// Create pie chart - Items by month
-function createPieChartItensMes() {
-    const ctx = document.getElementById('pieChartItensMes');
-    if (!ctx) return;
-    
-    if (pieChartItensMes) {
-        pieChartItensMes.destroy();
-    }
-    
-    const itemCounts = {};
-    allOccurrences.forEach(occ => {
-        const item = occ.itemApreendido?.item || 'Não especificado';
-        itemCounts[item] = (itemCounts[item] || 0) + 1;
-    });
-    
-    const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]);
-    const labels = sortedItems.map(([item]) => item);
-    const data = sortedItems.map(([, count]) => count);
-    const total = data.reduce((a, b) => a + b, 0);
-    
-    const totalElement = document.getElementById('totalItensMes');
-    if (totalElement) totalElement.textContent = total;
-    
-    const colors = ['#071d49', '#279b4d', '#fac709', '#c33', '#1976d2', '#f57c00', '#7b1fa2', '#00897b', '#00bcd4', '#ff9800'];
-    
-    pieChartItensMes = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors.slice(0, labels.length),
-                borderColor: '#fff',
-                borderWidth: 2,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#071d49',
-                    padding: 16,
-                    titleFont: {
-                        size: 0
-                    },
-                    bodyFont: {
-                        size: 16,
-                        weight: 'bold'
-                    },
-                    bodyColor: '#fff',
-                    borderColor: '#fac709',
-                    borderWidth: 2,
-                    displayColors: false,
-                    callbacks: {
-                        title: function() {
-                            return '';
-                        },
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// Create bar chart - Items by day (last 7 days)
-function createBarChartItensDia() {
-    const ctx = document.getElementById('barChartItensDia');
-    if (!ctx) return;
-    
-    if (barChartItensDia) {
-        barChartItensDia.destroy();
-    }
-    
-    // Filtrar ocorrências dos últimos 7 dias
-    const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    
-    const last7DaysOccs = allOccurrences.filter(occ => {
-        if (!occ.metadata?.dataRegistro) return false;
-        const occDate = new Date(occ.metadata.dataRegistro);
-        return occDate >= sevenDaysAgo && occDate <= now;
-    });
-    
-    // Agrupar por tipo de item
-    const itemCounts = {};
-    last7DaysOccs.forEach(occ => {
-        const item = occ.itemApreendido?.item || 'Não especificado';
-        itemCounts[item] = (itemCounts[item] || 0) + 1;
-    });
-    
-    const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]);
-    const labels = sortedItems.map(([item]) => item);
-    const counts = sortedItems.map(([, count]) => count);
-    const total = counts.reduce((a, b) => a + b, 0);
-    
-    const totalElement = document.getElementById('totalItensDia');
-    if (totalElement) totalElement.textContent = total;
-    
-    const colors = ['#fac709', '#279b4d', '#071d49', '#c33', '#00bcd4', '#ff9800', '#9c27b0', '#4caf50'];
-    
-    barChartItensDia = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Ocorrências',
-                data: counts,
-                backgroundColor: colors.slice(0, labels.length),
-                borderRadius: 6
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: { legend: { display: false } },
-            scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1, color: '#666' }, grid: { color: '#f0f2f5' } },
-                x: { ticks: { color: '#666' }, grid: { display: false } }
-            }
-        }
-    });
-}
-
-// Create pie chart - Occurrences by month
-function createPieChartMonth() {
-    const ctx = document.getElementById('pieChartMonth');
-    if (!ctx) return;
-    
-    // Destroy existing chart
-    if (pieChartMonth) {
-        pieChartMonth.destroy();
-    }
-    
-    // Count by month
-    const monthCounts = {};
-    const monthNames = [
-        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-    ];
-    
-    // Initialize all months with 0
-    monthNames.forEach(month => {
-        monthCounts[month] = 0;
-    });
-    
-    // Count occurrences by month
-    allOccurrences.forEach(occ => {
-        if (occ.metadata?.dataRegistro) {
-            const occDate = new Date(occ.metadata.dataRegistro);
-            const monthName = monthNames[occDate.getMonth()];
-            monthCounts[monthName]++;
-        }
-    });
-    
-    // Filter out months with 0 occurrences and sort by month order
-    const sortedData = monthNames
-        .map(month => ({ month, count: monthCounts[month] }))
-        .filter(item => item.count > 0);
-    
-    const labels = sortedData.map(item => item.month);
-    const data = sortedData.map(item => item.count);
-    const total = data.reduce((a, b) => a + b, 0);
-    
-    // Update total display
-    const totalElement = document.getElementById('totalMonthOccurrences');
-    if (totalElement) {
-        totalElement.textContent = total;
-    }
-    
-    // Colors for each month
-    const colors = [
-        '#279b4d', '#071d49', '#fac709', '#c33',
-        '#00bcd4', '#ff9800', '#9c27b0', '#4caf50',
-        '#f44336', '#2196f3', '#ff5722', '#795548'
-    ];
-    
-    pieChartMonth = new Chart(ctx, {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: colors.slice(0, labels.length),
-                borderColor: '#fff',
-                borderWidth: 2,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: '#071d49',
-                    padding: 16,
-                    titleFont: {
-                        size: 0
-                    },
-                    bodyFont: {
-                        size: 16,
-                        weight: 'bold'
-                    },
-                    bodyColor: '#fff',
-                    borderColor: '#fac709',
-                    borderWidth: 2,
-                    displayColors: false,
-                    callbacks: {
-                        title: function() {
-                            return '';
-                        },
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
-    });
-}
-
-// ==================== FILTRO DE DATA PERSONALIZADA ====================
-
-// Função para validar data no formato brasileiro
-function isValidDateFilter(dateString) {
-    const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-    const match = dateString.match(regex);
-    
-    if (!match) return false;
-    
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10);
-    const year = parseInt(match[3], 10);
-    
-    if (month < 1 || month > 12) return false;
-    if (day < 1 || day > 31) return false;
-    
-    const date = new Date(year, month - 1, day);
-    return date.getFullYear() === year && 
-           date.getMonth() === month - 1 && 
-           date.getDate() === day;
-}
-
-// Função para converter data brasileira para objeto Date
-function brDateToDateObj(brDate) {
-    const [day, month, year] = brDate.split('/');
-    return new Date(year, month - 1, day);
-}
-
-// Aplicar máscara de data nos campos de filtro
-function applyDateMaskFilter(e) {
-    let value = e.target.value.replace(/\D/g, '');
-    
-    if (value.length >= 2) {
-        value = value.substring(0, 2) + '/' + value.substring(2);
-    }
-    if (value.length >= 5) {
-        value = value.substring(0, 5) + '/' + value.substring(5, 9);
-    }
-    
-    e.target.value = value;
-}
-
-// Event listeners para máscaras de data
-if (filterDataInicio) {
-    filterDataInicio.addEventListener('input', applyDateMaskFilter);
-}
-
-if (filterDataFim) {
-    filterDataFim.addEventListener('input', applyDateMaskFilter);
-}
-
-// Filtrar gráfico por data personalizada
-if (btnFilterChart) {
-    btnFilterChart.addEventListener('click', () => {
-        const dataInicio = filterDataInicio.value;
-        const dataFim = filterDataFim.value;
-        
-        if (!dataInicio || !dataFim) {
-            customAlert.error('Por favor, preencha ambas as datas');
-            return;
-        }
-        
-        if (!isValidDateFilter(dataInicio)) {
-            customAlert.error('Data de início inválida. Use o formato dd/mm/aaaa');
-            return;
-        }
-        
-        if (!isValidDateFilter(dataFim)) {
-            customAlert.error('Data de fim inválida. Use o formato dd/mm/aaaa');
-            return;
-        }
-        
-        const startDate = brDateToDateObj(dataInicio);
-        const endDate = brDateToDateObj(dataFim);
-        
-        if (startDate > endDate) {
-            customAlert.error('A data de início deve ser anterior à data de fim');
-            return;
-        }
-        
-        customDateRange = { startDate, endDate };
-        createLineChart();
-    });
-}
-
-// Resetar filtro para últimos 30 dias
-if (btnResetFilter) {
-    btnResetFilter.addEventListener('click', () => {
-        customDateRange = null;
-        filterDataInicio.value = '';
-        filterDataFim.value = '';
-        createLineChart();
-    });
-}
-
-// ==================== FILTRO DE DATA PARA UNIDADE ====================
-
-// Event listeners para máscaras de data - Unidade
-if (filterDataInicioUnidade) {
-    filterDataInicioUnidade.addEventListener('input', applyDateMaskFilter);
-}
-
-if (filterDataFimUnidade) {
-    filterDataFimUnidade.addEventListener('input', applyDateMaskFilter);
-}
-
-// Filtrar gráfico de Unidade por data personalizada
-if (btnFilterChartUnidade) {
-    btnFilterChartUnidade.addEventListener('click', () => {
-        const dataInicio = filterDataInicioUnidade.value;
-        const dataFim = filterDataFimUnidade.value;
-        
-        if (!dataInicio || !dataFim) {
-            customAlert.error('Por favor, preencha ambas as datas');
-            return;
-        }
-        
-        if (!isValidDateFilter(dataInicio)) {
-            customAlert.error('Data de início inválida. Use o formato dd/mm/aaaa');
-            return;
-        }
-        
-        if (!isValidDateFilter(dataFim)) {
-            customAlert.error('Data de fim inválida. Use o formato dd/mm/aaaa');
-            return;
-        }
-        
-        const startDate = brDateToDateObj(dataInicio);
-        const endDate = brDateToDateObj(dataFim);
-        
-        if (startDate > endDate) {
-            customAlert.error('A data de início deve ser anterior à data de fim');
-            return;
-        }
-        
-        customDateRangeUnidade = { startDate, endDate };
-        createPieChartUnidade();
-    });
-}
-
-// Resetar filtro de Unidade
-if (btnResetFilterUnidade) {
-    btnResetFilterUnidade.addEventListener('click', () => {
-        customDateRangeUnidade = null;
-        filterDataInicioUnidade.value = '';
-        filterDataFimUnidade.value = '';
-        createPieChartUnidade();
-    });
-}
-
-// ==================== FILTRO DE DATA PARA ITENS ====================
-
-// Event listeners para máscaras de data - Itens
-if (filterDataInicioItens) {
-    filterDataInicioItens.addEventListener('input', applyDateMaskFilter);
-}
-
-if (filterDataFimItens) {
-    filterDataFimItens.addEventListener('input', applyDateMaskFilter);
-}
-
-// Filtrar gráfico de Itens por data personalizada
-if (btnFilterChartItens) {
-    btnFilterChartItens.addEventListener('click', () => {
-        const dataInicio = filterDataInicioItens.value;
-        const dataFim = filterDataFimItens.value;
-        
-        if (!dataInicio || !dataFim) {
-            customAlert.error('Por favor, preencha ambas as datas');
-            return;
-        }
-        
-        if (!isValidDateFilter(dataInicio)) {
-            customAlert.error('Data de início inválida. Use o formato dd/mm/aaaa');
-            return;
-        }
-        
-        if (!isValidDateFilter(dataFim)) {
-            customAlert.error('Data de fim inválida. Use o formato dd/mm/aaaa');
-            return;
-        }
-        
-        const startDate = brDateToDateObj(dataInicio);
-        const endDate = brDateToDateObj(dataFim);
-        
-        if (startDate > endDate) {
-            customAlert.error('A data de início deve ser anterior à data de fim');
-            return;
-        }
-        
-        customDateRangeItens = { startDate, endDate };
-        createPieChartItens();
-    });
-}
-
-// Resetar filtro de Itens
-if (btnResetFilterItens) {
-    btnResetFilterItens.addEventListener('click', () => {
-        customDateRangeItens = null;
-        filterDataInicioItens.value = '';
-        filterDataFimItens.value = '';
-        createPieChartItens();
-    });
-}
-
 // ==================== FUNCIONALIDADE TCO ====================
 
 // Elementos TCO
-const searchInputTCO = document.getElementById('searchInputTCO');
 const refreshBtnTCO = document.getElementById('refreshBtnTCO');
 const exportBtnTCO = document.getElementById('exportBtnTCO');
 const tcoTableBody = document.getElementById('tcoTableBody');
@@ -2413,9 +1501,8 @@ async function loadTCOs() {
         const response = await ipcRenderer.invoke('get-tcos');
         
         if (response.success && response.tcos) {
-            // Mapear os dados corretamente
-            tcoData = response.tcos.map(tco => mapTCOData(tco));
-            console.log('TCOs carregados e mapeados:', tcoData.length);
+            tcoData = response.tcos;
+            console.log('TCOs carregados:', tcoData.length);
         } else {
             console.error('Erro ao carregar TCOs:', response);
             tcoData = [];
@@ -2430,97 +1517,76 @@ async function loadTCOs() {
     }
 }
 
-// Variável para armazenar TCOs filtrados (igual às ocorrências)
-let filteredTCOs = [];
-
-// Função para extrair dados corretos do TCO baseado na ocorrência
-function mapTCOData(tco) {
-    // O TCO deve ter os dados mapeados da ocorrência:
-    // RAP = numeroGenesis da ocorrência (Nº Genesis)
-    // ENVOLVIDO = nome completo do proprietário (Nome Completo em Dados do Proprietário)
-    // ILÍCITO = espécie do item apreendido (Espécie em Item Apreendido)
-    
-    let rap = 'N/A';
-    let envolvido = 'N/A';
-    let ilicito = 'N/A';
-    
-    // Tentar diferentes possíveis campos para RAP (Nº Genesis)
-    if (tco['RAP (GÊNESIS)']) rap = tco['RAP (GÊNESIS)'];
-    else if (tco.numeroGenesis) rap = tco.numeroGenesis;
-    else if (tco['Nº Genesis']) rap = tco['Nº Genesis'];
-    else if (tco.rap) rap = tco.rap;
-    
-    // Tentar diferentes possíveis campos para ENVOLVIDO (Nome Completo)
-    if (tco['Envolvido']) envolvido = tco['Envolvido'];
-    else if (tco.nomeCompleto) envolvido = tco.nomeCompleto;
-    else if (tco['Nome Completo']) envolvido = tco['Nome Completo'];
-    else if (tco.envolvido) envolvido = tco.envolvido;
-    
-    // Tentar diferentes possíveis campos para ILÍCITO (Espécie)
-    if (tco['Ilícito']) ilicito = tco['Ilícito'];
-    else if (tco.especie) ilicito = tco.especie;
-    else if (tco['Espécie']) ilicito = tco['Espécie'];
-    else if (tco.ilicito) ilicito = tco.ilicito;
-    
-    return {
-        rap: rap,
-        envolvido: envolvido,
-        ilicito: ilicito,
-        // Manter outros campos se existirem
-        id: tco.id || Math.random().toString(36).substr(2, 9),
-        dataRegistro: tco.dataRegistro || tco['Data Registro'] || new Date().toISOString()
-    };
+// Aplicar filtros quando carregar TCOs
+function loadTCOsWithFilters() {
+    loadTCOs().then(() => {
+        // Aplicar filtros ativos após carregar
+        renderTCOTable();
+    });
 }
 
-// Função para renderizar tabela de TCOs
-function renderTCOTable(searchTerm = '') {
+// Função para renderizar tabela de TCOs (com filtros)
+function renderTCOTable() {
     tcoTableBody.innerHTML = '';
     
-    filteredTCOs = tcoData;
+    let filteredData = [...tcoData];
     
-    // Filtrar por termo de busca
-    if (searchTerm) {
-        filteredTCOs = tcoData.filter(tco => 
-            tco.rap.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            tco.envolvido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            tco.ilicito.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+    // Aplicar filtros
+    if (activeFiltersTCO.rap) {
+        filteredData = filteredData.filter(tco => {
+            const rap = (tco.rap || '').toString().toLowerCase();
+            return rap.includes(activeFiltersTCO.rap.toLowerCase());
+        });
+    }
+    
+    if (activeFiltersTCO.ilicito) {
+        filteredData = filteredData.filter(tco => tco.ilicito === activeFiltersTCO.ilicito);
+    }
+    
+    if (activeFiltersTCO.item) {
+        filteredData = filteredData.filter(tco => {
+            const item = (tco.item || '').toString().toLowerCase();
+            return item.includes(activeFiltersTCO.item.toLowerCase());
+        });
     }
     
     // Se não houver dados, mostra mensagem na tabela
-    if (filteredTCOs.length === 0) {
-        tcoTableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: #999;">Nenhum TCO encontrado</td></tr>';
+    if (filteredData.length === 0) {
+        tcoTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: #999;">Nenhum TCO encontrado</td></tr>';
         return;
     }
     
-    filteredTCOs.forEach((tco, index) => {
+    filteredData.forEach(tco => {
         const row = document.createElement('tr');
+        // Garantir que o RAP (Genesis) seja exibido corretamente
+        const rapValue = (tco.rap || '').toString().trim();
         row.innerHTML = `
-            <td><strong>${tco.rap}</strong></td>
-            <td>${tco.envolvido}</td>
-            <td>${tco.ilicito}</td>
+            <td><strong>${rapValue || 'N/A'}</strong></td>
+            <td>${tco.envolvido || 'N/A'}</td>
+            <td>${tco.ilicito || 'N/A'}</td>
+            <td>${tco.item || 'N/A'}</td>
             <td>
                 <div class="action-buttons">
-                    <button class="btn-action btn-view" onclick="viewTCO(${index})" title="Ver detalhes">
+                    <button class="btn-action btn-view" onclick="viewTCO('${tco.id}')" title="Ver detalhes">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
                         </svg>
                     </button>
-                    <button class="btn-action btn-edit" onclick="editTCO(${index})" title="Editar">
+                    <button class="btn-action btn-edit" onclick="editTCO('${tco.id}')" title="Editar">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
                     </button>
-                    <button class="btn-action btn-print" onclick="openTCOPrintModal(${index})" title="Imprimir">
+                    <button class="btn-action btn-print" onclick="printTCO('${tco.id}')" title="Imprimir">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 6 2 18 2 18 9"/>
                             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
                             <rect x="6" y="14" width="12" height="8"/>
                         </svg>
                     </button>
-                    <button class="btn-action btn-delete-action" onclick="confirmTCODelete(${index})" title="Excluir">
+                    <button class="btn-action btn-delete-action" onclick="deleteTCO('${tco.id}')" title="Excluir">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="3 6 5 6 21 6"/>
                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -2533,11 +1599,99 @@ function renderTCOTable(searchTerm = '') {
     });
 }
 
-// Busca de TCO
-if (searchInputTCO) {
-    searchInputTCO.addEventListener('input', (e) => {
-        renderTCOTable(e.target.value);
+// Filtros TCO
+if (filterBtnTCO) {
+    filterBtnTCO.addEventListener('click', () => {
+        populateIlicitoOptions();
+        restoreTCOFilterValues();
+        if (filterModalTCO) {
+            filterModalTCO.classList.add('active');
+        }
     });
+}
+
+if (filterModalTCOClose) {
+    filterModalTCOClose.addEventListener('click', () => {
+        if (filterModalTCO) filterModalTCO.classList.remove('active');
+    });
+}
+
+// Preencher opções de ilícito dinamicamente
+function populateIlicitoOptions() {
+    const ilicitoSelect = document.getElementById('filterIlicito');
+    if (!ilicitoSelect) return;
+    
+    // Obter todos os ilícitos únicos dos TCOs
+    const allIlicitos = [...new Set(tcoData.map(tco => tco.ilicito).filter(Boolean))];
+    
+    // Limpar opções existentes (exceto "Todos os ilícitos")
+    ilicitoSelect.innerHTML = '<option value="">Todos os ilícitos</option>';
+    
+    // Adicionar opções
+    allIlicitos.forEach(ilicito => {
+        const option = document.createElement('option');
+        option.value = ilicito;
+        option.textContent = ilicito;
+        ilicitoSelect.appendChild(option);
+    });
+}
+
+// Restaurar valores dos filtros TCO
+function restoreTCOFilterValues() {
+    const filterRAP = document.getElementById('filterRAP');
+    const filterIlicito = document.getElementById('filterIlicito');
+    const filterItem = document.getElementById('filterItem');
+    
+    if (filterRAP) filterRAP.value = activeFiltersTCO.rap || '';
+    if (filterIlicito) filterIlicito.value = activeFiltersTCO.ilicito || '';
+    if (filterItem) filterItem.value = activeFiltersTCO.item || '';
+}
+
+if (btnApplyFiltersTCO) {
+    btnApplyFiltersTCO.addEventListener('click', () => {
+        applyTCOFilters();
+        if (filterModalTCO) filterModalTCO.classList.remove('active');
+    });
+}
+
+if (btnClearFiltersTCO) {
+    btnClearFiltersTCO.addEventListener('click', () => {
+        clearTCOFilters();
+    });
+}
+
+function applyTCOFilters() {
+    const filterRAP = document.getElementById('filterRAP');
+    const filterIlicito = document.getElementById('filterIlicito');
+    const filterItem = document.getElementById('filterItem');
+    
+    // Salvar filtros ativos
+    activeFiltersTCO = {
+        rap: filterRAP ? filterRAP.value.trim() : '',
+        ilicito: filterIlicito ? filterIlicito.value : '',
+        item: filterItem ? filterItem.value.trim() : ''
+    };
+    
+    // Aplicar filtros na renderização
+    renderTCOTable();
+}
+
+function clearTCOFilters() {
+    activeFiltersTCO = {
+        rap: '',
+        ilicito: '',
+        item: ''
+    };
+    
+    const filterRAP = document.getElementById('filterRAP');
+    const filterIlicito = document.getElementById('filterIlicito');
+    const filterItem = document.getElementById('filterItem');
+    
+    if (filterRAP) filterRAP.value = '';
+    if (filterIlicito) filterIlicito.value = '';
+    if (filterItem) filterItem.value = '';
+    
+    renderTCOTable();
 }
 
 // Atualizar TCOs
@@ -2561,490 +1715,262 @@ if (refreshBtnTCO) {
     });
 }
 
-// Exportar TCOs para Excel - Abrir modal de filtros
+// Exportar TCOs para Excel - Abre modal de filtros
 if (exportBtnTCO) {
     exportBtnTCO.addEventListener('click', () => {
-        document.getElementById('exportTCOFilterModal').style.display = 'flex';
-    });
-}
-
-// ==================== VARIÁVEIS GLOBAIS TCO ====================
-let currentTCO = null;
-let isTCOEditMode = false;
-
-// Elementos dos modais de TCO
-const tcoModal = document.getElementById('tcoModal');
-const tcoModalClose = document.getElementById('tcoModalClose');
-const tcoModalTitle = document.getElementById('tcoModalTitle');
-const tcoModalBody = document.getElementById('tcoModalBody');
-const btnCloseTCO = document.getElementById('btnCloseTCO');
-const btnSaveEditTCO = document.getElementById('btnSaveEditTCO');
-
-const deleteTCOModal = document.getElementById('deleteTCOModal');
-const deleteTCOModalClose = document.getElementById('deleteTCOModalClose');
-const deleteTCOId = document.getElementById('deleteTCOId');
-const btnCancelDeleteTCO = document.getElementById('btnCancelDeleteTCO');
-const btnConfirmDeleteTCO = document.getElementById('btnConfirmDeleteTCO');
-
-const printTCOModal = document.getElementById('printTCOModal');
-const printTCOModalClose = document.getElementById('printTCOModalClose');
-const printTCOId = document.getElementById('printTCOId');
-const btnCancelPrintTCO = document.getElementById('btnCancelPrintTCO');
-const btnPrintTCODocument = document.getElementById('btnPrintTCODocument');
-
-// ==================== EVENT LISTENERS DOS MODAIS TCO ====================
-
-// Modal de visualização/edição de TCO
-if (tcoModalClose) {
-    tcoModalClose.addEventListener('click', closeTCOModal);
-}
-if (btnCloseTCO) {
-    btnCloseTCO.addEventListener('click', closeTCOModal);
-}
-if (btnSaveEditTCO) {
-    btnSaveEditTCO.addEventListener('click', executeTCOEdit);
-}
-
-// Modal de exclusão de TCO
-if (deleteTCOModalClose) {
-    deleteTCOModalClose.addEventListener('click', () => {
-        deleteTCOModal.classList.remove('active');
-    });
-}
-if (btnCancelDeleteTCO) {
-    btnCancelDeleteTCO.addEventListener('click', () => {
-        deleteTCOModal.classList.remove('active');
-    });
-}
-if (btnConfirmDeleteTCO) {
-    btnConfirmDeleteTCO.addEventListener('click', executeTCODelete);
-}
-
-// Modal de impressão de TCO
-if (printTCOModalClose) {
-    printTCOModalClose.addEventListener('click', () => {
-        printTCOModal.classList.remove('active');
-    });
-}
-if (btnCancelPrintTCO) {
-    btnCancelPrintTCO.addEventListener('click', () => {
-        printTCOModal.classList.remove('active');
-    });
-}
-if (btnPrintTCODocument) {
-    btnPrintTCODocument.addEventListener('click', printTCODocument);
-}
-
-// Fechar modais ao clicar fora
-if (tcoModal) {
-    tcoModal.addEventListener('click', (e) => {
-        if (e.target === tcoModal) {
-            closeTCOModal();
-        }
-    });
-}
-if (deleteTCOModal) {
-    deleteTCOModal.addEventListener('click', (e) => {
-        if (e.target === deleteTCOModal) {
-            deleteTCOModal.classList.remove('active');
-        }
-    });
-}
-if (printTCOModal) {
-    printTCOModal.addEventListener('click', (e) => {
-        if (e.target === printTCOModal) {
-            printTCOModal.classList.remove('active');
+        const exportTCOFilterModal = document.getElementById('exportTCOFilterModal');
+        if (exportTCOFilterModal) {
+            // Limpar filtros anteriores
+            document.getElementById('exportTCODataInicial').value = '';
+            document.getElementById('exportTCODataFinal').value = '';
+            
+            // Limpar checkboxes de ilícito
+            document.querySelectorAll('.export-ilicito-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            // Limpar checkboxes de status
+            document.querySelectorAll('.export-tco-status-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            exportTCOFilterModal.classList.add('active');
         }
     });
 }
 
-// ==================== FUNÇÕES DOS MODAIS TCO ====================
-
-// Fechar modal de TCO
-function closeTCOModal() {
-    tcoModal.classList.remove('active');
-    currentTCO = null;
-    isTCOEditMode = false;
-}
-
-// View TCO (igual às ocorrências)
-window.viewTCO = function(index) {
-    currentTCO = filteredTCOs[index];
-    isTCOEditMode = false;
-    showTCOModal(false);
-};
-
-// Edit TCO (igual às ocorrências)
-window.editTCO = function(index) {
-    currentTCO = filteredTCOs[index];
-    isTCOEditMode = true;
-    showTCOModal(true);
-};
-
-// Open TCO print modal (igual às ocorrências)
-window.openTCOPrintModal = function(index) {
-    currentTCO = filteredTCOs[index];
-    printTCOId.textContent = currentTCO.rap;
-    printTCOModal.classList.add('active');
-};
-
-// Open TCO delete modal (igual às ocorrências)
-window.confirmTCODelete = function(index) {
-    currentTCO = filteredTCOs[index];
-    deleteTCOId.textContent = currentTCO.rap;
-    deleteTCOModal.classList.add('active');
-};
-
-// ==================== FUNÇÕES DE MODAL TCO ====================
-
-// Show TCO modal (igual às ocorrências, mas apenas com dados do TCO)
-function showTCOModal(editable) {
-    if (!currentTCO) return;
-
-    tcoModalTitle.textContent = editable ? 'Editar TCO' : 'Detalhes do TCO';
-
-    tcoModalBody.innerHTML = `
-        <!-- Seção TCO -->
-        <section class="form-section">
-            <h2 class="section-title">Dados do TCO</h2>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="edit-tco-rap">RAP (GÊNESIS)</label>
-                    <input type="text" id="edit-tco-rap" name="edit-tco-rap" value="${currentTCO.rap || ''}" ${!editable ? 'disabled' : 'required'}>
-                </div>
-                <div class="form-group">
-                    <label for="edit-tco-envolvido">Envolvido</label>
-                    <input type="text" id="edit-tco-envolvido" name="edit-tco-envolvido" value="${currentTCO.envolvido || ''}" ${!editable ? 'disabled' : 'required'}>
-                </div>
-                <div class="form-group">
-                    <label for="edit-tco-ilicito">Ilícito</label>
-                    ${editable ? `
-                    <select id="edit-tco-ilicito" name="edit-tco-ilicito" required>
-                        <option value="">Selecione...</option>
-                        <option value="SUBSTÂNCIA" ${currentTCO.ilicito === 'SUBSTÂNCIA' ? 'selected' : ''}>SUBSTÂNCIA</option>
-                        <option value="OBJETO" ${currentTCO.ilicito === 'OBJETO' ? 'selected' : ''}>OBJETO</option>
-                        <option value="SIMULACRO" ${currentTCO.ilicito === 'SIMULACRO' ? 'selected' : ''}>SIMULACRO</option>
-                        <option value="ARMA BRANCA" ${currentTCO.ilicito === 'ARMA BRANCA' ? 'selected' : ''}>ARMA BRANCA</option>
-                    </select>
-                    ` : `
-                    <input type="text" id="edit-tco-ilicito" value="${currentTCO.ilicito || ''}" disabled>
-                    `}
-                </div>
-            </div>
-        </section>
-
-        <!-- Seção Informações do Registro -->
-        <section class="form-section">
-            <h2 class="section-title">Informações do Registro</h2>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Data do Registro</label>
-                    <input type="text" value="${formatDateTime(currentTCO.dataRegistro)}" disabled>
-                </div>
-            </div>
-        </section>
-    `;
-
-    btnSaveEditTCO.style.display = editable ? 'inline-flex' : 'none';
+// Função para aplicar filtros e exportar TCOs
+async function performExportTCOsWithFilters() {
+    const dataInicial = document.getElementById('exportTCODataInicial').value;
+    const dataFinal = document.getElementById('exportTCODataFinal').value;
     
-    tcoModal.classList.add('active');
+    // Obter ilícitos selecionados (checkboxes)
+    const selectedIlicitos = Array.from(document.querySelectorAll('.export-ilicito-checkbox:checked'))
+        .map(checkbox => checkbox.value);
     
-    // Configurar lógica dinâmica do modal de edição se estiver em modo editável
-    if (editable) {
-        setupTCOModalEditLogic();
-    }
-}
-
-// Configurar lógica dinâmica do modal de edição de TCO (simplificada)
-function setupTCOModalEditLogic() {
-    // Como agora temos apenas 3 campos simples (RAP, Envolvido, Ilícito),
-    // não precisamos de lógica complexa de máscaras ou validações especiais
+    // Obter status selecionados (checkboxes)
+    const selectedStatuses = Array.from(document.querySelectorAll('.export-tco-status-checkbox:checked'))
+        .map(checkbox => checkbox.value);
     
-    // Focar no campo RAP e Ilícito se necessário
-    const rapInput = document.getElementById('edit-tco-rap');
-    const ilicitoSelect = document.getElementById('edit-tco-ilicito');
-    
-    // Apenas garantir que os campos estão funcionando corretamente
-    if (rapInput) {
-        rapInput.addEventListener('input', function() {
-            // Remover espaços extras
-            this.value = this.value.trim();
-        });
+    // Fechar modal
+    const exportTCOFilterModal = document.getElementById('exportTCOFilterModal');
+    if (exportTCOFilterModal) {
+        exportTCOFilterModal.classList.remove('active');
     }
     
-    if (ilicitoSelect) {
-        ilicitoSelect.addEventListener('change', function() {
-            // Garantir que uma opção foi selecionada
-            if (this.value === '') {
-                this.style.borderColor = '#dc3545';
-            } else {
-                this.style.borderColor = '';
-            }
-        });
-    }
-}
-
-// Executar edição de TCO (apenas 3 campos principais)
-async function executeTCOEdit() {
-    if (!currentTCO) return;
-
-    // Coletar dados do formulário (apenas os 3 campos principais) em maiúsculas
-    const formData = {
-        id: currentTCO.id,
-        rap: document.getElementById('edit-tco-rap').value.toUpperCase(),
-        envolvido: document.getElementById('edit-tco-envolvido').value.toUpperCase(),
-        ilicito: document.getElementById('edit-tco-ilicito').value.toUpperCase()
-    };
-
-    // Validar campos obrigatórios
-    if (!formData.rap || !formData.envolvido || !formData.ilicito) {
-        customAlert.error('Preencha todos os campos obrigatórios');
-        return;
-    }
-
-    showLoading('Atualizando TCO', 'Salvando alterações...');
-    try {
-        const result = await ipcRenderer.invoke('update-tco', formData);
-        hideLoading();
-        if (result.success) {
-            customAlert.success('TCO atualizado com sucesso!');
-            closeTCOModal();
-            loadTCOs();
-        } else {
-            customAlert.error('Erro ao atualizar: ' + result.message);
-        }
-    } catch (error) {
-        console.error('Erro ao atualizar TCO:', error);
-        hideLoading();
-        customAlert.error('Erro ao atualizar TCO');
-    }
-}
-
-// Execute TCO delete (igual às ocorrências)
-async function executeTCODelete() {
-    if (!currentTCO) return;
-
-    showLoading('Excluindo TCO', 'Removendo do sistema...');
-    try {
-        const result = await ipcRenderer.invoke('delete-tco', currentTCO.rap);
-        hideLoading();
-        if (result.success) {
-            customAlert.success('TCO excluído com sucesso!');
-            deleteTCOModal.classList.remove('active');
-            closeTCOModal();
-            loadTCOs();
-        } else {
-            customAlert.error('Erro ao excluir: ' + result.message);
-        }
-    } catch (error) {
-        console.error('Erro ao excluir TCO:', error);
-        hideLoading();
-        customAlert.error('Erro ao excluir TCO');
-    }
-}
-
-// Close TCO print modal (igual às ocorrências)
-function closeTCOPrintModal() {
-    printTCOModal.classList.remove('active');
-}
-
-// Print TCO document (igual às ocorrências)
-async function printTCODocument() {
-    if (!currentTCO) return;
+    // Aplicar filtros
+    let filteredData = [...tcoData];
     
-    printTCOModal.classList.remove('active');
-    showLoading('Gerando documento', 'Criando documento TCO...');
-    
-    try {
-        closeTCOPrintModal();
-        
-        // Gerar e exibir prévia do documento
-        const result = await ipcRenderer.invoke('print-tco-document', currentTCO);
-        hideLoading();
-        if (!result.success) {
-            customAlert.error('Erro ao gerar documento: ' + result.message);
-        }
-    } catch (error) {
-        console.error('Erro ao gerar documento TCO:', error);
-        hideLoading();
-        customAlert.error('Erro ao gerar documento');
-    }
-}
-
-// ==================== FILTROS DE EXPORTAÇÃO TCO ====================
-
-// Elementos do modal de filtros TCO
-const exportTCOFilterModal = document.getElementById('exportTCOFilterModal');
-const closeExportTCOModal = document.getElementById('closeExportTCOModal');
-const resetTCOFiltersBtn = document.getElementById('resetTCOFiltersBtn');
-const applyTCOFiltersBtn = document.getElementById('applyTCOFiltersBtn');
-
-// Fechar modal de filtros TCO
-if (closeExportTCOModal) {
-    closeExportTCOModal.addEventListener('click', () => {
-        exportTCOFilterModal.style.display = 'none';
-    });
-}
-
-// Limpar filtros TCO
-if (resetTCOFiltersBtn) {
-    resetTCOFiltersBtn.addEventListener('click', () => {
-        // Limpar campos de data
-        document.getElementById('exportTCODataInicio').value = '';
-        document.getElementById('exportTCODataFim').value = '';
-        
-        // Marcar todos os checkboxes de ilícito
-        document.getElementById('filterTCOSubstancia').checked = true;
-        document.getElementById('filterTCOObjeto').checked = true;
-        document.getElementById('filterTCOSimulacro').checked = true;
-        document.getElementById('filterTCOArmaBranca').checked = true;
-    });
-}
-
-// Aplicar filtros e exportar TCO
-if (applyTCOFiltersBtn) {
-    applyTCOFiltersBtn.addEventListener('click', async () => {
-        // Fechar modal
-        exportTCOFilterModal.style.display = 'none';
-        
-        // Coletar filtros
-        const filters = {
-            dataInicio: document.getElementById('exportTCODataInicio').value,
-            dataFim: document.getElementById('exportTCODataFim').value,
-            ilicitos: {
-                substancia: document.getElementById('filterTCOSubstancia').checked,
-                objeto: document.getElementById('filterTCOObjeto').checked,
-                simulacro: document.getElementById('filterTCOSimulacro').checked,
-                armaBranca: document.getElementById('filterTCOArmaBranca').checked
-            }
-        };
-        
-        // Filtrar dados
-        const filteredTCOs = applyTCOFilters(tcoData, filters);
-        
-        if (filteredTCOs.length === 0) {
-            customAlert.warning('Nenhum TCO encontrado com os filtros aplicados.');
-            return;
-        }
-        
-        showLoading('Exportando TCOs', 'Gerando arquivo Excel...');
+    // Para filtrar por data e status, precisamos buscar informações das ocorrências relacionadas
+    // Vamos carregar as ocorrências para fazer o match
+    let occurrencesData = [];
+    if (dataInicial || dataFinal || selectedStatuses.length > 0) {
         try {
-            const result = await ipcRenderer.invoke('export-tcos', filteredTCOs);
-            hideLoading();
-            if (result.success) {
-                customAlert.success(`Arquivo Excel exportado com sucesso!<br><br><strong>Registros:</strong> ${filteredTCOs.length}<br><strong>Local:</strong> ${result.filePath}`);
-            } else {
-                customAlert.error('Erro ao exportar: ' + result.message);
+            const result = await ipcRenderer.invoke('get-occurrences');
+            if (result.success && result.data) {
+                occurrencesData = result.data;
             }
         } catch (error) {
-            console.error('Erro ao exportar TCOs:', error);
-            hideLoading();
-            customAlert.error('Erro ao exportar arquivo');
+            console.error('Erro ao carregar ocorrências para filtro:', error);
+        }
+    }
+    
+    // Criar mapa de RAP -> ocorrência para busca rápida
+    const rapToOccurrence = {};
+    occurrencesData.forEach(occ => {
+        if (occ.ocorrencia?.numeroGenesis) {
+            rapToOccurrence[occ.ocorrencia.numeroGenesis] = occ;
         }
     });
+    
+    // Filtro por ilícito (direto do TCO)
+    if (selectedIlicitos.length > 0) {
+        filteredData = filteredData.filter(tco => {
+            return selectedIlicitos.includes(tco.ilicito);
+        });
+    }
+    
+    // Filtro por data e status (precisa buscar da ocorrência relacionada)
+    if (dataInicial || dataFinal || selectedStatuses.length > 0) {
+        filteredData = filteredData.filter(tco => {
+            const occurrence = rapToOccurrence[tco.rap];
+            if (!occurrence) return false; // Se não encontrar ocorrência, excluir
+            
+            // Filtro por data
+            if (dataInicial || dataFinal) {
+                const dataApreensao = occurrence.ocorrencia?.dataApreensao;
+                if (!dataApreensao) return false;
+                
+                try {
+                    const [day, month, year] = dataApreensao.split('/');
+                    if (!day || !month || !year) return false;
+                    
+                    const occDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                    occDate.setHours(0, 0, 0, 0);
+                    
+                    if (dataInicial) {
+                        const initDate = new Date(dataInicial + 'T00:00:00');
+                        if (occDate < initDate) return false;
+                    }
+                    
+                    if (dataFinal) {
+                        const finalDate = new Date(dataFinal + 'T23:59:59');
+                        if (occDate > finalDate) return false;
+                    }
+                } catch (error) {
+                    console.error('Erro ao processar data:', error);
+                    return false;
+                }
+            }
+            
+            // Filtro por status
+            if (selectedStatuses.length > 0) {
+                const status = occurrence.ocorrencia?.status;
+                if (!selectedStatuses.includes(status)) return false;
+            }
+            
+            return true;
+        });
+    }
+    
+    // Verificar se há dados para exportar
+    if (filteredData.length === 0) {
+        customAlert.error('Nenhum TCO encontrado com os filtros selecionados.');
+        return;
+    }
+    
+    // Exportar
+    showLoading('Exportando TCOs', `Gerando arquivo Excel com ${filteredData.length} TCO(s)...`);
+    try {
+        const result = await ipcRenderer.invoke('export-tcos', filteredData);
+        hideLoading();
+        if (result.success) {
+            customAlert.success(`Arquivo Excel exportado com sucesso!<br><br><strong>TCOs exportados:</strong> ${filteredData.length}<br><strong>Local:</strong> ${result.filePath}`);
+        } else {
+            customAlert.error('Erro ao exportar: ' + result.message);
+        }
+    } catch (error) {
+        console.error('Erro ao exportar TCOs:', error);
+        hideLoading();
+        customAlert.error('Erro ao exportar arquivo');
+    }
 }
 
-// Função para aplicar filtros aos TCOs
-function applyTCOFilters(data, filters) {
-    return data.filter(tco => {
-        // Filtro por data
-        if (filters.dataInicio || filters.dataFim) {
-            const tcoDate = new Date(tco.dataRegistro);
-            if (filters.dataInicio) {
-                const startDate = new Date(filters.dataInicio);
-                if (tcoDate < startDate) return false;
+// Funções globais para ações da tabela
+window.viewTCO = function(id) {
+    customAlert.info('Visualização de TCO em desenvolvimento.');
+};
+
+window.editTCO = function(id) {
+    customAlert.info('Edição de TCO em desenvolvimento.');
+};
+
+window.printTCO = function(id) {
+    customAlert.info('Impressão de TCO em desenvolvimento.');
+};
+
+window.deleteTCO = function(id) {
+    // Encontrar o TCO pelo ID
+    const tco = tcoData.find(t => t.id === id);
+    if (!tco) {
+        customAlert.error('TCO não encontrado');
+        return;
+    }
+    
+    customAlert.confirm('Tem certeza que deseja excluir este TCO? Esta ação não pode ser desfeita.', async () => {
+        showLoading('Excluindo TCO', 'Removendo do Google Sheets...');
+        try {
+            const result = await ipcRenderer.invoke('delete-tco', tco.rap);
+            hideLoading();
+            
+            if (result.success) {
+                customAlert.success('TCO excluído com sucesso!');
+                // Recarregar TCOs
+                await loadTCOs();
+            } else {
+                customAlert.error('Erro ao excluir TCO: ' + result.message);
             }
-            if (filters.dataFim) {
-                const endDate = new Date(filters.dataFim);
-                endDate.setHours(23, 59, 59, 999);
-                if (tcoDate > endDate) return false;
-            }
+        } catch (error) {
+            console.error('Erro ao excluir TCO:', error);
+            hideLoading();
+            customAlert.error('Erro ao excluir TCO: ' + error.message);
         }
-        
-        // Filtro por tipo de ilícito
-        const ilicito = (tco.ilicito || '').toLowerCase();
-        const ilicitoTerms = {
-            substancia: ['substância', 'substancia', 'droga', 'entorpecente'],
-            objeto: ['objeto', 'celular', 'eletrônico', 'aparelho', 'bem', 'item'],
-            simulacro: ['simulacro', 'replica', 'imitação'],
-            armaBranca: ['arma branca', 'arma', 'faca', 'canivete', 'punhal']
-        };
-        
-        let matchesIlicito = false;
-        
-        if (filters.ilicitos.substancia && (ilicito === 'substância' || ilicitoTerms.substancia.some(term => ilicito.includes(term)))) {
-            matchesIlicito = true;
-        }
-        if (filters.ilicitos.objeto && (ilicito === 'objeto' || ilicitoTerms.objeto.some(term => ilicito.includes(term)))) {
-            matchesIlicito = true;
-        }
-        if (filters.ilicitos.simulacro && (ilicito === 'simulacro' || ilicitoTerms.simulacro.some(term => ilicito.includes(term)))) {
-            matchesIlicito = true;
-        }
-        if (filters.ilicitos.armaBranca && (ilicito === 'arma branca' || ilicitoTerms.armaBranca.some(term => ilicito.includes(term)))) {
-            matchesIlicito = true;
-        }
-        
-        return matchesIlicito;
     });
-}
+};
 
 // Função para obter opções de status baseado na espécie
 function getStatusOptions(especie) {
-    if (especie === 'SUBSTÂNCIA') {
-        // Status para substâncias
-        return ['SECRIMPO', 'INSTITUTO DE CRIMINALÍSTICA', 'DOP', 'DESTRUIÇÃO'];
-    } else if (especie === 'OBJETO' || especie === 'SIMULACRO' || especie === 'ARMA BRANCA') {
-        // Status para objetos, simulacros e armas brancas
+    if (!especie) return [];
+    
+    // Converter para maiúsculo para comparação
+    const especieUpper = especie.toUpperCase();
+    
+    if (especieUpper === 'SUBSTÂNCIA') {
+        return ['SECRIMPO', 'INSTITUTO DE CRIMINALISTICA', 'DOP', 'DESTRUIÇÃO'];
+    } else if (especieUpper === 'OBJETO' || especieUpper === 'SIMULACRO' || especieUpper === 'ARMA BRANCA') {
         return ['SECRIMPO', 'CEGOC', 'IC'];
     } else {
-        // Status gerais para outras espécies
-        return ['SECRIMPO', 'CEGOC', 'IC'];
+        // Se espécie não reconhecida, não mostra opções
+        return [];
     }
 }
 
 // Função para atualizar status
 window.updateStatus = async function(index, newStatus) {
-    // Permitir valores vazios para limpar o status
-    if (newStatus === undefined || newStatus === null) return;
+    if (!newStatus || newStatus === '') {
+        // Se o status foi limpo, não fazer nada
+        return;
+    }
     
     const occurrence = filteredOccurrences[index];
-    if (!occurrence) return;
+    if (!occurrence) {
+        customAlert.error('Ocorrência não encontrada');
+        return;
+    }
+    
+    // Validar se o status é válido para a espécie
+    const especie = occurrence.itemApreendido?.especie;
+    const validStatusOptions = getStatusOptions(especie);
+    
+    if (!validStatusOptions.includes(newStatus)) {
+        customAlert.error('Status inválido para esta espécie. Por favor, selecione um status válido.');
+        // Restaurar o valor anterior
+        const statusDropdown = document.querySelector(`.status-dropdown[data-index="${index}"]`);
+        if (statusDropdown) {
+            const previousStatus = occurrence.ocorrencia.status || '';
+            statusDropdown.value = previousStatus;
+        }
+        return;
+    }
+    
+    // Guardar o status anterior para possível reversão
+    const previousStatus = occurrence.ocorrencia.status;
     
     try {
-        console.log('Atualizando status para:', newStatus);
-        console.log('Ocorrência atual:', occurrence);
+        // Atualizar localmente primeiro para feedback imediato
+        occurrence.ocorrencia.status = newStatus;
         
-        // Verificar se a estrutura da ocorrência está correta
-        if (!occurrence.ocorrencia) {
-            occurrence.ocorrencia = {};
-        }
-        
-        // Atualizar localmente
-        occurrence.ocorrencia.status = newStatus || '';
-        
-        // Função auxiliar para converter para maiúsculas com segurança
-        const safeToUpperCase = (value) => {
-            if (value === null || value === undefined) return '';
-            return String(value).toUpperCase();
-        };
-
-        // Preparar dados para atualização (em maiúsculas)
+        // Preparar dados para atualização
         const updatedData = {
             id: occurrence.id,
-            numeroGenesisOriginal: occurrence.ocorrencia?.numeroGenesis || '',
+            numeroGenesisOriginal: occurrence.ocorrencia.numeroGenesis,
             ocorrencia: {
-                numeroGenesis: safeToUpperCase(occurrence.ocorrencia?.numeroGenesis),
-                unidade: safeToUpperCase(occurrence.ocorrencia?.unidade),
-                dataApreensao: occurrence.ocorrencia?.dataApreensao || '',
-                leiInfrigida: safeToUpperCase(occurrence.ocorrencia?.leiInfrigida),
-                artigo: safeToUpperCase(occurrence.ocorrencia?.artigo),
-                status: safeToUpperCase(newStatus),
-                policialCondutor: safeToUpperCase(occurrence.ocorrencia?.policialCondutor)
+                numeroGenesis: occurrence.ocorrencia.numeroGenesis,
+                unidade: occurrence.ocorrencia.unidade || '',
+                dataApreensao: occurrence.ocorrencia.dataApreensao || '',
+                leiInfrigida: occurrence.ocorrencia.leiInfrigida || '',
+                artigo: occurrence.ocorrencia.artigo || '',
+                status: newStatus,
+                numeroPje: occurrence.ocorrencia.numeroPje || ''
             },
-            itemApreendido: convertToUppercase(occurrence.itemApreendido || {}),
-            proprietario: convertToUppercase(occurrence.proprietario || {}),
-            policial: convertToUppercase(occurrence.policial || {}),
+            itemApreendido: {
+                especie: occurrence.itemApreendido?.especie || '',
+                item: occurrence.itemApreendido?.item || '',
+                quantidade: occurrence.itemApreendido?.quantidade || '',
+                descricao: occurrence.itemApreendido?.descricao || ''
+            },
+            proprietario: occurrence.proprietario || {},
+            policial: occurrence.policial || {},
             metadata: {
                 registradoPor: 'Dashboard',
                 dataRegistro: new Date().toISOString()
@@ -3062,28 +1988,31 @@ window.updateStatus = async function(index, newStatus) {
                 occ.ocorrencia?.numeroGenesis === occurrence.ocorrencia.numeroGenesis
             );
             if (mainIndex !== -1) {
-                allOccurrences[mainIndex].ocorrencia.status = newStatus || '';
+                allOccurrences[mainIndex].ocorrencia.status = newStatus;
             }
             
             // Não precisamos recarregar a página, apenas atualizar visualmente
             // renderTable(); // Comentado para evitar piscar da tela
             
         } else {
+            // Reverter mudança local se falhar
+            occurrence.ocorrencia.status = previousStatus;
+            const statusDropdown = document.querySelector(`.status-dropdown[data-index="${index}"]`);
+            if (statusDropdown) {
+                statusDropdown.value = previousStatus || '';
+            }
             customAlert.error('Erro ao atualizar status: ' + (result.message || 'Erro desconhecido'));
-            // Reverter mudança local em caso de erro
-            occurrence.ocorrencia.status = '';
-            renderTable();
         }
     } catch (error) {
         console.error('Erro ao atualizar status:', error);
         console.error('Detalhes do erro:', error.message, error.stack);
-        console.error('Dados da ocorrência:', occurrence);
-        customAlert.error('Erro ao atualizar status: ' + error.message);
         // Reverter mudança local em caso de erro
-        if (occurrence.ocorrencia) {
-            occurrence.ocorrencia.status = '';
+        occurrence.ocorrencia.status = previousStatus;
+        const statusDropdown = document.querySelector(`.status-dropdown[data-index="${index}"]`);
+        if (statusDropdown) {
+            statusDropdown.value = previousStatus || '';
         }
-        renderTable();
+        customAlert.error('Erro ao atualizar status: ' + error.message);
     }
 };
 
@@ -3095,64 +2024,3 @@ setActiveTab = function(tab) {
         loadTCOs();
     }
 };
-
-// ==================== TEXTO EM MAIÚSCULAS ====================
-
-// Função para converter objeto para maiúsculas recursivamente
-function convertToUppercase(obj) {
-    if (obj === null || obj === undefined) {
-        return obj;
-    } else if (typeof obj === 'string') {
-        return obj.toUpperCase();
-    } else if (Array.isArray(obj)) {
-        return obj.map(item => convertToUppercase(item));
-    } else if (typeof obj === 'object') {
-        const result = {};
-        for (const key in obj) {
-            if (obj.hasOwnProperty(key)) {
-                result[key] = convertToUppercase(obj[key]);
-            }
-        }
-        return result;
-    }
-    return obj;
-}
-
-// Função para converter texto em maiúsculas em tempo real
-function setupUppercaseInputs() {
-    // Selecionar todos os campos de texto
-    const textInputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="search"], textarea');
-    
-    textInputs.forEach(input => {
-        // Converter para maiúsculas ao digitar
-        input.addEventListener('input', function() {
-            const cursorPosition = this.selectionStart;
-            this.value = this.value.toUpperCase();
-            
-            // Manter a posição do cursor
-            this.setSelectionRange(cursorPosition, cursorPosition);
-        });
-        
-        // Converter para maiúsculas ao colar texto
-        input.addEventListener('paste', function(e) {
-            setTimeout(() => {
-                this.value = this.value.toUpperCase();
-            }, 10);
-        });
-    });
-}
-
-// Aplicar maiúsculas quando a página carregar
-window.addEventListener('load', () => {
-    setupUppercaseInputs();
-    
-    // Reaplicar quando novos elementos forem adicionados (modais, etc.)
-    const observer = new MutationObserver(() => {
-        setupUppercaseInputs();
-    });
-    
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-});

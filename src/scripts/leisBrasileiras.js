@@ -242,13 +242,28 @@ function obterCategorias() {
     return categorias.sort();
 }
 
+/**
+ * Função para converter sigla em nome completo
+ * @param {string} sigla - Sigla da lei (ex: "CP", "LCP")
+ * @returns {string} Nome completo da lei ou a sigla original se não encontrada
+ */
+function converterSiglaParaNome(sigla) {
+    if (!sigla || typeof sigla !== 'string') return sigla;
+    
+    const siglaUpper = sigla.trim().toUpperCase();
+    const lei = leisBrasileiras.find(l => l.sigla.toUpperCase() === siglaUpper);
+    
+    return lei ? lei.nome : sigla;
+}
+
 // Exportar para Node.js se disponível
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         leisBrasileiras,
         buscarLeis,
         obterLeisPorCategoria,
-        obterCategorias
+        obterCategorias,
+        converterSiglaParaNome
     };
 } else {
     // Expor globalmente para o browser
@@ -256,4 +271,5 @@ if (typeof module !== 'undefined' && module.exports) {
     window.buscarLeis = buscarLeis;
     window.obterLeisPorCategoria = obterLeisPorCategoria;
     window.obterCategorias = obterCategorias;
+    window.converterSiglaParaNome = converterSiglaParaNome;
 }

@@ -1,10 +1,6 @@
 {
   "name": "secrimpo-pmdf",
   "version": "1.0.0",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/SEU_USUARIO/SecrimpoPMDF.git"
-  },
   "description": "Painel para gestão de ocorrências",
   "main": "src/main.js",
   "scripts": {

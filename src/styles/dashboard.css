@@ -180,6 +180,24 @@ body {
     color: #c33;
 }
 
+/* Botão Verificar Atualizações - cor verde */
+#checkUpdatesBtn {
+    color: #28a745;
+}
+
+#checkUpdatesBtn:hover {
+    background: #f8f9fa;
+    color: #218838;
+}
+
+#checkUpdatesBtn .dropdown-icon {
+    color: #28a745;
+}
+
+#checkUpdatesBtn:hover .dropdown-icon {
+    color: #218838;
+}
+
 .dropdown-item .logout-icon {
     width: 22px;
     height: 22px;
@@ -591,6 +609,27 @@ body {
     box-shadow: 0 5px 15px rgba(39, 155, 77, 0.3);
 }
 
+.btn-filter {
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-filter:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+    background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+}
+
 .btn-icon {
     width: 18px;
     height: 18px;
@@ -874,6 +913,153 @@ body {
     flex: 1;
 }
 
+/* Estilos para o modal de filtros de exportação */
+.export-filter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: #071d49;
+    font-size: 14px;
+}
+
+.date-range {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.date-input-group {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.date-input-group label {
+    font-weight: 500;
+    color: #666;
+    font-size: 13px;
+}
+
+.date-input {
+    padding: 10px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: #071d49;
+    box-shadow: 0 0 0 3px rgba(7, 29, 73, 0.1);
+}
+
+.filter-group-title {
+    font-weight: 600;
+    color: #071d49;
+    font-size: 16px;
+    margin-bottom: 12px;
+}
+
+.checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.checkbox-option {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.checkbox-option:hover {
+    border-color: #071d49;
+    background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(7, 29, 73, 0.1);
+}
+
+.checkbox-option input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.checkbox-option input[type="checkbox"]:hover {
+    border-color: #071d49;
+}
+
+.checkbox-option input[type="checkbox"]:checked {
+    background-color: #071d49;
+    border-color: #071d49;
+}
+
+.checkbox-option input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -60%) rotate(45deg);
+}
+
+.checkbox-option:has(input[type="checkbox"]:checked),
+.checkbox-option.checked {
+    border-color: #071d49;
+    background: #f0f4ff;
+    box-shadow: 0 2px 8px rgba(7, 29, 73, 0.15);
+}
+
+.checkbox-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    flex: 1;
+}
+
+.checkbox-option:has(input[type="checkbox"]:checked) .checkbox-label,
+.checkbox-option.checked .checkbox-label {
+    color: #071d49;
+    font-weight: 600;
+}
+
 .modal-footer {
     padding: 20px 30px;
     border-top: 2px solid #f0f2f5;
@@ -883,87 +1069,6 @@ body {
 }
 
 /* Modal Form */
-.modal-form {
-    max-width: 1200px;
-    width: 95vw;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-.modal-form .modal-body {
-    max-height: calc(90vh - 140px);
-    overflow-y: auto;
-    padding: 20px;
-}
-
-/* Estilos específicos para campos do modal de formulário */
-.modal-form input,
-.modal-form select,
-.modal-form textarea {
-    padding: 16px 20px !important;
-    font-size: 15px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    background: #f8f9fa;
-    transition: all 0.3s ease;
-    min-height: 48px;
-    box-sizing: border-box;
-}
-
-.modal-form input:focus,
-.modal-form select:focus,
-.modal-form textarea:focus {
-    outline: none;
-    border-color: #fac709;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(250, 199, 9, 0.1);
-}
-
-.modal-form input:disabled,
-.modal-form select:disabled,
-.modal-form textarea:disabled {
-    background: #f0f2f5;
-    cursor: not-allowed;
-    color: #6c757d;
-}
-
-.modal-form textarea {
-    min-height: 80px;
-    resize: vertical;
-    padding: 16px 20px !important;
-}
-
-/* Melhorar espaçamento dos grupos de formulário */
-.modal-form .form-group {
-    margin-bottom: 20px;
-}
-
-.modal-form .form-group label {
-    color: #071d49;
-    font-weight: 600;
-    margin-bottom: 10px;
-    font-size: 14px;
-    display: block;
-}
-
-.modal-form .section-title {
-    color: #071d49;
-    font-size: 18px;
-    font-weight: 700;
-    margin-bottom: 20px;
-    padding-bottom: 8px;
-    border-bottom: 2px solid #fac709;
-}
-
-.modal-form .form-section {
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-}
-
-.modal-form .form-section:not(:last-child) {
-    border-bottom: 1px solid #e9ecef;
-}
-
 .modal-form-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -1199,511 +1304,158 @@ body {
     color: #333;
 }
 
-.status-dropdown:disabled {
-    background: #f5f5f5;
-    color: #999;
-    cursor: not-allowed;
-    border-color: #ddd;
+.status-dropdown:disabled { 
+    background: #f5f5f5; 
+    color: #999; 
+    cursor: not-allowed; 
+    border-color: #ddd; 
 }
 
-/* Modal de Filtros de Exportação */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+/* Modal de Atualização */
+.update-info {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.update-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    color: #071d49;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-    animation: fadeIn 0.3s ease;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.modal-content {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    max-width: 600px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-    animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.modal-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid #e0e0e0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h3 {
-    color: #071d49;
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: #666;
-    cursor: pointer;
-    padding: 0;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: all 0.2s ease;
-}
-
-.modal-close:hover {
-    background: #f0f0f0;
-    color: #333;
-}
-
-.modal-body {
-    padding: 32px;
-}
-
-.filter-section {
-    margin-bottom: 32px;
-    padding: 20px;
-    background: #fafbfc;
-    border-radius: 10px;
-    border: 1px solid #e9ecef;
-}
-
-.filter-section:last-child {
-    margin-bottom: 0;
-}
-
-.filter-section h4 {
-    color: #071d49;
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #e9ecef;
-}
-
-.date-range-filter {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-.date-input-group {
-    flex: 1;
-    min-width: 200px;
-}
-
-.date-input-group label {
-    display: block;
-    color: #333;
-    font-weight: 500;
-    margin-bottom: 6px;
-    font-size: 14px;
-}
-
-.date-input {
+.update-icon svg {
     width: 100%;
-    padding: 10px 12px;
-    border: 2px solid #e0e0e0;
+    height: 100%;
+}
+
+.update-info h3 {
+    color: #071d49;
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.version-info {
+    background: #f8f9fa;
     border-radius: 8px;
+    padding: 15px;
+    margin: 20px 0;
+    text-align: left;
+}
+
+.version-info p {
+    margin: 8px 0;
     font-size: 14px;
-    transition: all 0.3s ease;
+}
+
+.version-info strong {
+    color: #071d49;
+    margin-right: 8px;
+}
+
+.release-notes {
+    margin-top: 20px;
+    text-align: left;
+}
+
+.release-notes h4 {
+    color: #071d49;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.release-notes-content {
     background: #f8f9fa;
-}
-
-.date-input:focus {
-    outline: none;
-    border-color: #071d49;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(7, 29, 73, 0.1);
-}
-
-.checkbox-group {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-}
-
-.checkbox-item {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    user-select: none;
-    padding: 12px 16px;
     border-radius: 8px;
-    transition: all 0.2s ease;
-    background: white;
-    border: 1px solid #e9ecef;
+    padding: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #555;
 }
 
-.checkbox-item:hover {
-    background: #f8f9fa;
-}
-
-.checkbox-item input[type="checkbox"] {
-    margin-right: 12px;
+.dropdown-item .dropdown-icon {
     width: 18px;
     height: 18px;
-    accent-color: #071d49;
-    cursor: pointer;
+    margin-right: 10px;
 }
 
-.checkbox-item .checkmark {
-    font-size: 14px;
-    color: #333;
-    font-weight: 500;
-}
-
-.status-filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-}
-
-.status-category {
-    padding: 20px;
-    background: white;
-    border-radius: 10px;
-    border: 2px solid #e9ecef;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.status-category h5 {
-    color: #071d49;
-    font-size: 15px;
-    font-weight: 600;
-    margin: 0 0 16px 0;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #dee2e6;
-}
-
-.item-filter-group {
+/* Formulário de Filtros */
+.filter-form {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
 
-.item-category {
-    flex: 1;
-    padding: 16px;
-    background: white;
-    border-radius: 10px;
-    border: 2px solid #e9ecef;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-@media (min-width: 768px) {
-    .status-filter-group {
-        flex-direction: row;
-        gap: 24px;
-    }
-    
-    .status-category {
-        flex: 1;
-    }
-    
-    .item-filter-group {
-        flex-direction: row;
-        gap: 24px;
-    }
-}
-
-.modal-footer {
-    padding: 24px 32px;
-    border-top: 1px solid #e0e0e0;
+.filter-group {
     display: flex;
-    gap: 16px;
-    justify-content: flex-end;
-    background: #f8f9fa;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.btn-secondary {
-    padding: 10px 20px;
-    background: #f8f9fa;
+.filter-group label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #071d49;
+}
+
+.filter-input {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.2s ease;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: #071d49;
+    box-shadow: 0 0 0 2px rgba(7, 29, 73, 0.1);
+}
+
+.filter-select {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: #071d49;
+    box-shadow: 0 0 0 2px rgba(7, 29, 73, 0.1);
+}
+
+.date-range {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.date-range span {
     color: #666;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
     font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
 }
 
-.btn-secondary:hover {
-    background: #e9ecef;
-    border-color: #ccc;
-    color: #333;
-}
-
-.btn-primary {
-    padding: 10px 20px;
-    background: linear-gradient(135deg, #071d49 0%, #0a2a6b 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
+.date-input {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
     font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 8px rgba(7, 29, 73, 0.2);
+    flex: 1;
+    transition: border-color 0.2s ease;
 }
 
-.btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(7, 29, 73, 0.3);
-}
-
-.btn-primary:active {
-    transform: translateY(0);
-}
-
-/* Responsividade */
-@media (max-width: 768px) {
-    .modal-content {
-        width: 95%;
-        margin: 20px;
-    }
-    
-    .date-range-filter {
-        flex-direction: column;
-    }
-    
-    .date-input-group {
-        min-width: auto;
-    }
-    
-    .modal-footer {
-        flex-direction: column;
-    }
-    
-    .btn-secondary,
-    .btn-primary {
-        width: 100%;
-        justify-content: center;
-    }
-}
-
-/* ==================== MODAL COM DESIGN IDÊNTICO AO PAINEL ==================== */
-
-/* Sobrescrever estilos do modal para replicar o formulário de nova ocorrência */
-#viewModal .modal-content {
-    max-width: 1400px !important;
-    width: 95% !important;
-    max-height: 95vh !important;
-    margin: 2.5vh auto !important;
-    background: #f0f2f5 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    padding: 0 !important;
-}
-
-#viewModal .modal-header {
-    background: linear-gradient(135deg, #071d49 0%, #0a2a6b 100%) !important;
-    color: white !important;
-    padding: 20px 40px !important;
-    border-bottom: none !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-}
-
-#viewModal .modal-header h2 {
-    color: white !important;
-    font-size: 24px !important;
-    font-weight: 600 !important;
-    margin: 0 !important;
-}
-
-#viewModal .modal-close {
-    background: rgba(255, 255, 255, 0.15) !important;
-    border: 2px solid rgba(255, 255, 255, 0.3) !important;
-    border-radius: 50% !important;
-    width: 45px !important;
-    height: 45px !important;
-    backdrop-filter: blur(10px) !important;
-}
-
-#viewModal .modal-close:hover {
-    background: rgba(255, 255, 255, 0.25) !important;
-    border-color: rgba(255, 255, 255, 0.5) !important;
-    transform: scale(1.05) !important;
-}
-
-#viewModal .modal-close svg {
-    color: white !important;
-    width: 20px !important;
-    height: 20px !important;
-}
-
-#viewModal .modal-body {
-    padding: 40px !important;
-    background: white !important;
-    border-radius: 16px !important;
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08) !important;
-    margin: 40px !important;
-    overflow-y: auto !important;
-    flex: 1 !important;
-}
-
-/* Ajustar o conteúdo do modal para ter o mesmo estilo do formulário */
-#viewModal .form-section {
-    margin-bottom: 40px !important;
-    padding-bottom: 40px !important;
-    border-bottom: 2px solid #f0f2f5 !important;
-}
-
-#viewModal .form-section:last-of-type {
-    border-bottom: none !important;
-    margin-bottom: 0 !important;
-    padding-bottom: 0 !important;
-}
-
-#viewModal .section-title {
-    color: #071d49 !important;
-    font-size: 22px !important;
-    font-weight: 600 !important;
-    margin-bottom: 25px !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px !important;
-}
-
-#viewModal .form-grid {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
-    gap: 20px !important;
-}
-
-#viewModal .form-group {
-    display: flex !important;
-    flex-direction: column !important;
-}
-
-#viewModal .form-group.full-width {
-    grid-column: 1 / -1 !important;
-}
-
-#viewModal .form-group label {
-    color: #071d49 !important;
-    font-weight: 600 !important;
-    margin-bottom: 8px !important;
-    font-size: 14px !important;
-}
-
-#viewModal .form-group input,
-#viewModal .form-group select,
-#viewModal .form-group textarea {
-    padding: 12px 16px !important;
-    border: 2px solid #e0e0e0 !important;
-    border-radius: 8px !important;
-    font-size: 14px !important;
-    transition: all 0.3s ease !important;
-    background: white !important;
-}
-
-#viewModal .form-group input:focus,
-#viewModal .form-group select:focus,
-#viewModal .form-group textarea:focus {
-    outline: none !important;
-    border-color: #fac709 !important;
-    background: white !important;
-    box-shadow: 0 0 0 3px rgba(250, 199, 9, 0.1) !important;
-}
-
-#viewModal .form-group input:disabled,
-#viewModal .form-group select:disabled,
-#viewModal .form-group textarea:disabled {
-    background: #f8f9fa !important;
-    cursor: not-allowed !important;
-    border-color: #e0e0e0 !important;
-}
-
-#viewModal .form-group textarea {
-    resize: vertical !important;
-    min-height: 80px !important;
-}
-
-#viewModal .modal-footer {
-    background: white !important;
-    padding: 20px 40px !important;
-    border-top: 2px solid #f0f2f5 !important;
-    border-radius: 0 !important;
-    margin: 0 !important;
-    display: flex !important;
-    gap: 15px !important;
-    justify-content: flex-end !important;
-}
-
-/* Responsividade para o modal */
-@media (max-width: 768px) {
-    #viewModal .modal-content {
-        width: 100% !important;
-        height: 100vh !important;
-        max-height: 100vh !important;
-        margin: 0 !important;
-        border-radius: 0 !important;
-    }
-    
-    #viewModal .modal-header {
-        padding: 15px 20px !important;
-    }
-    
-    #viewModal .modal-header h2 {
-        font-size: 20px !important;
-    }
-    
-    #viewModal .modal-body {
-        padding: 25px !important;
-        margin: 20px !important;
-    }
-    
-    #viewModal .form-grid {
-        grid-template-columns: 1fr !important;
-    }
-    
-    #viewModal .modal-footer {
-        padding: 15px 20px !important;
-        flex-direction: column !important;
-    }
-    
-    #viewModal .modal-footer button {
-        width: 100% !important;
-    }
-}
-
-/* ==================== TEXTO EM MAIÚSCULAS ==================== */
-/* Todos os campos de input, textarea e select em maiúsculas */
-input[type="text"],
-input[type="email"], 
-input[type="tel"],
-input[type="search"],
-textarea,
-select {
-    text-transform: uppercase !important;
+.date-input:focus {
+    outline: none;
+    border-color: #071d49;
+    box-shadow: 0 0 0 2px rgba(7, 29, 73, 0.1);
 }

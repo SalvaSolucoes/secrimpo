@@ -22,9 +22,9 @@ else:
     sys.path.insert(0, bundle_dir)
 
 # Configurações KeyAuth
-KEYAUTH_NAME = "CREDENCIAL_REMOVIDA"
-KEYAUTH_OWNERID = "CREDENCIAL_REMOVIDA"
-KEYAUTH_VERSION = "1.0"
+KEYAUTH_NAME = "Credencial Removida"
+KEYAUTH_OWNERID = "Credencial Removida"
+KEYAUTH_VERSION = "Credencial Removida"
 
 # Importar KeyAuth oficial
 try:
@@ -37,10 +37,10 @@ except ImportError as e:
     sys.exit(1)
 
 # Validar configurações
-if KEYAUTH_NAME == "CREDENCIAL_REMOVIDA" or KEYAUTH_OWNERID == "CREDENCIAL_REMOVIDA":
+if KEYAUTH_NAME == "seu_app_name_aqui" or KEYAUTH_OWNERID == "seu_owner_id_aqui":
     print(json.dumps({
         "success": False,
-        "message": "ERRO: Configure as credenciais KeyAuth no arquivo auth_wrapper.py antes de compilar!"
+        "message": "ERRO: Configure KEYAUTH_NAME e KEYAUTH_OWNERID no arquivo auth_wrapper.py antes de compilar!"
     }))
     sys.exit(1)
 

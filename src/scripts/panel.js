@@ -40,33 +40,38 @@ occurrenceForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    // Coletar dados do formulário
+    // Função auxiliar para converter strings para maiúsculas
+    function toUpperCase(value) {
+        return typeof value === 'string' ? value.toUpperCase() : value;
+    }
+    
+    // Coletar dados do formulário e converter para maiúsculas
     const formData = {
         ocorrencia: {
-            numeroGenesis: document.getElementById('numeroGenesis').value,
-            unidade: document.getElementById('unidade').value,
+            numeroGenesis: toUpperCase(document.getElementById('numeroGenesis').value),
+            unidade: document.getElementById('unidade').value, // Select mantém valor original
             dataApreensao: brDateToISO(dataApreensao),
-            leiInfrigida: document.getElementById('leiInfrigida').value,
-            artigo: document.getElementById('artigo').value,
-            status: document.getElementById('status').value || '',
-            numeroPje: document.getElementById('numeroPje').value || '-'
+            leiInfrigida: toUpperCase(document.getElementById('leiInfrigida').value),
+            artigo: toUpperCase(document.getElementById('artigo').value),
+            status: document.getElementById('status').value, // Select mantém valor original
+            numeroPje: toUpperCase(document.getElementById('numeroPje').value || '')
         },
         itemApreendido: {
-            especie: document.getElementById('especie').value,
-            item: document.getElementById('item').value,
-            quantidade: document.getElementById('quantidade').value,
-            descricao: document.getElementById('descricaoItem').value
+            especie: document.getElementById('especie').value, // Select mantém valor original
+            item: toUpperCase(document.getElementById('item').value),
+            quantidade: toUpperCase(document.getElementById('quantidade').value),
+            descricao: toUpperCase(document.getElementById('descricaoItem').value)
         },
         proprietario: {
-            nome: document.getElementById('nomeProprietario').value,
-            tipoDocumento: document.getElementById('tipoDocumento').value,
-            numeroDocumento: document.getElementById('numeroDocumento').value
+            nome: toUpperCase(document.getElementById('nomeProprietario').value),
+            tipoDocumento: document.getElementById('tipoDocumento').value, // Select mantém valor original
+            numeroDocumento: toUpperCase(document.getElementById('numeroDocumento').value)
         },
         policial: {
-            nome: document.getElementById('nomePolicial').value,
-            matricula: document.getElementById('matricula').value,
-            graduacao: document.getElementById('graduacao').value,
-            unidade: document.getElementById('unidadePolicial').value
+            nome: toUpperCase(document.getElementById('nomePolicial').value),
+            matricula: toUpperCase(document.getElementById('matricula').value),
+            graduacao: document.getElementById('graduacao').value, // Select mantém valor original
+            unidade: toUpperCase(document.getElementById('unidadePolicial').value)
         },
         metadata: {
             registradoPor: sessionStorage.getItem('username'),
@@ -494,9 +499,14 @@ extractBtn.addEventListener('click', async () => {
 
 // Função para preencher o formulário com dados extraídos
 function fillFormWithExtractedData(data) {
-    // Preencher campos se os dados existirem
+    // Função auxiliar para converter strings para maiúsculas
+    function toUpperCase(value) {
+        return typeof value === 'string' ? value.toUpperCase() : value;
+    }
+    
+    // Preencher campos se os dados existirem, convertendo para maiúsculas
     if (data.numeroGenesis) {
-        document.getElementById('numeroGenesis').value = data.numeroGenesis;
+        document.getElementById('numeroGenesis').value = toUpperCase(data.numeroGenesis);
     }
     
     if (data.dataApreensao) {
@@ -504,43 +514,43 @@ function fillFormWithExtractedData(data) {
     }
     
     if (data.artigo) {
-        document.getElementById('artigo').value = data.artigo;
+        document.getElementById('artigo').value = toUpperCase(data.artigo);
     }
     
     if (data.quantidade) {
-        document.getElementById('quantidade').value = data.quantidade;
+        document.getElementById('quantidade').value = toUpperCase(data.quantidade);
     }
     
     if (data.especie) {
-        document.getElementById('especie').value = data.especie;
-        // Atualizar as opções do status baseado na espécie
-        updateStatusOptions();
+        document.getElementById('especie').value = data.especie; // Select mantém valor original
+        // Trigger change event para atualizar as opções do status
+        document.getElementById('especie').dispatchEvent(new Event('change'));
     }
     
     if (data.status) {
         // Aguardar um pouco para que as opções do status sejam carregadas
         setTimeout(() => {
-            document.getElementById('status').value = data.status;
+            document.getElementById('status').value = data.status; // Select mantém valor original
         }, 100);
     }
     
     // Dados do proprietário
     if (data.nomeProprietario) {
-        document.getElementById('nomeProprietario').value = data.nomeProprietario;
+        document.getElementById('nomeProprietario').value = toUpperCase(data.nomeProprietario);
     }
     
     if (data.tipoDocumento) {
-        document.getElementById('tipoDocumento').value = data.tipoDocumento;
+        document.getElementById('tipoDocumento').value = data.tipoDocumento; // Select mantém valor original
         // Trigger change event para aplicar máscara
         document.getElementById('tipoDocumento').dispatchEvent(new Event('change'));
     }
     
     if (data.numeroDocumento) {
-        document.getElementById('numeroDocumento').value = data.numeroDocumento;
+        document.getElementById('numeroDocumento').value = toUpperCase(data.numeroDocumento);
     }
     
     if (data.matricula) {
-        document.getElementById('matricula').value = data.matricula;
+        document.getElementById('matricula').value = toUpperCase(data.matricula);
     }
     
     // Adicionar classe de destaque aos campos preenchidos
@@ -575,73 +585,69 @@ function formatFileSize(bytes) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-// Função para atualizar opções de status baseado na espécie
-function updateStatusOptions() {
-    const especieSelect = document.getElementById('especie');
-    const statusSelect = document.getElementById('status');
+// Função para converter texto para maiúsculas
+function convertToUpperCase(e) {
+    const input = e.target;
+    const cursorPosition = input.selectionStart;
+    const originalValue = input.value;
+    const upperValue = originalValue.toUpperCase();
     
-    if (!especieSelect || !statusSelect) return;
-    
-    const especieSelecionada = especieSelect.value;
-    
-    // Limpar opções atuais
-    statusSelect.innerHTML = '';
-    
-    if (!especieSelecionada) {
-        statusSelect.innerHTML = '<option value="">Selecione primeiro a espécie...</option>';
-        statusSelect.disabled = true;
-        return;
-    }
-    
-    // Adicionar opção padrão
-    statusSelect.innerHTML = '<option value="">Selecione...</option>';
-    statusSelect.disabled = false;
-    
-    if (especieSelecionada === 'SUBSTÂNCIA') {
-        // Status para substâncias
-        statusSelect.innerHTML += '<option value="SECRIMPO">SECRIMPO</option>';
-        statusSelect.innerHTML += '<option value="INSTITUTO DE CRIMINALÍSTICA">INSTITUTO DE CRIMINALÍSTICA</option>';
-        statusSelect.innerHTML += '<option value="DOP">DOP</option>';
-        statusSelect.innerHTML += '<option value="DESTRUIÇÃO">DESTRUIÇÃO</option>';
-    } else if (especieSelecionada === 'OBJETO' || especieSelecionada === 'SIMULACRO' || especieSelecionada === 'ARMA BRANCA') {
-        // Status para objetos, simulacros e armas brancas
-        statusSelect.innerHTML += '<option value="SECRIMPO">SECRIMPO</option>';
-        statusSelect.innerHTML += '<option value="CEGOC">CEGOC</option>';
-        statusSelect.innerHTML += '<option value="IC">IC</option>';
-    } else {
-        // Status gerais para outras espécies
-        statusSelect.innerHTML += '<option value="SECRIMPO">SECRIMPO</option>';
-        statusSelect.innerHTML += '<option value="CEGOC">CEGOC</option>';
-        statusSelect.innerHTML += '<option value="IC">IC</option>';
+    // Só atualizar se o valor mudou (evita loop infinito)
+    if (originalValue !== upperValue) {
+        input.value = upperValue;
+        // Restaurar posição do cursor
+        input.setSelectionRange(cursorPosition, cursorPosition);
     }
 }
 
-// Inicializar sistema de status quando a página carregar
-window.addEventListener('load', function() {
-    const especieSelect = document.getElementById('especie');
-    const statusSelect = document.getElementById('status');
+// Aplicar conversão para maiúsculas em todos os campos de texto
+function applyUpperCaseToTextFields() {
+    // Lista de IDs dos campos de texto que devem ser convertidos para maiúsculas
+    const textFields = [
+        'numeroGenesis',
+        'dataApreensao',
+        'leiInfrigida',
+        'artigo',
+        'numeroPje',
+        'item',
+        'quantidade',
+        'descricaoItem',
+        'nomeProprietario',
+        'numeroDocumento',
+        'nomePolicial',
+        'matricula',
+        'unidadePolicial'
+    ];
     
-    if (especieSelect && statusSelect) {
-        // Inicializar o campo como desabilitado
-        statusSelect.disabled = true;
-        
-        // Adicionar listener para mudança de espécie
-        especieSelect.addEventListener('change', updateStatusOptions);
-        
-        // Adicionar listener para limpar o valor quando "Selecione..." for escolhido
-        statusSelect.addEventListener('change', function() {
-            if (this.value === '') {
-                this.value = '';
-            }
-        });
-    }
-});
+    textFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            // Converter ao digitar
+            field.addEventListener('input', convertToUpperCase);
+            // Converter ao colar
+            field.addEventListener('paste', function(e) {
+                setTimeout(() => convertToUpperCase(e), 0);
+            });
+        }
+    });
+}
 
 // Inicializar autocomplete para leis quando o DOM estiver carregado
 document.addEventListener('DOMContentLoaded', function() {
+    // Aplicar conversão para maiúsculas em todos os campos de texto
+    applyUpperCaseToTextFields();
+    
     // Inicializar autocomplete para o campo Lei Infringida
     const leiInput = document.getElementById('leiInfrigida');
     if (leiInput) {
+        // Converter sigla antiga para nome completo se existir
+        if (leiInput.value && typeof converterSiglaParaNome === 'function') {
+            const nomeCompleto = converterSiglaParaNome(leiInput.value);
+            if (nomeCompleto !== leiInput.value) {
+                leiInput.value = nomeCompleto;
+            }
+        }
+        
         const autocompleteLei = initAutocompleteLeis(leiInput, {
             onSelect: function(leiSelecionada) {
                 console.log('Lei selecionada:', leiSelecionada);
@@ -662,18 +668,55 @@ document.addEventListener('DOMContentLoaded', function() {
                 // artigoInput.value = '';
             }
         });
+        
+        // Converter sigla para nome completo quando o campo perder o foco (se for uma sigla conhecida)
+        leiInput.addEventListener('blur', function() {
+            if (leiInput.value && typeof converterSiglaParaNome === 'function') {
+                const nomeCompleto = converterSiglaParaNome(leiInput.value);
+                if (nomeCompleto !== leiInput.value) {
+                    leiInput.value = nomeCompleto;
+                }
+            }
+        });
     }
     
-    // Garantir que o sistema de status seja inicializado após o DOM
-    setTimeout(function() {
-        const especieSelect = document.getElementById('especie');
-        const statusSelect = document.getElementById('status');
+    // Configurar lógica do campo Status baseado na Espécie
+    const especieSelect = document.getElementById('especie');
+    const statusSelect = document.getElementById('status');
+    
+    if (especieSelect && statusSelect) {
+        especieSelect.addEventListener('change', function() {
+            const especieSelecionada = this.value;
+            
+            // Limpar opções atuais
+            statusSelect.innerHTML = '';
+            
+            if (!especieSelecionada) {
+                statusSelect.innerHTML = '<option value="">Selecione primeiro a espécie...</option>';
+                statusSelect.disabled = true;
+                return;
+            }
+            
+            // Adicionar opção padrão
+            statusSelect.innerHTML = '<option value="">Selecione...</option>';
+            statusSelect.disabled = false;
+            
+            if (especieSelecionada === 'SUBSTÂNCIA') {
+                // Opções para SUBSTÂNCIA
+                statusSelect.innerHTML += '<option value="SECRIMPO">SECRIMPO</option>';
+                statusSelect.innerHTML += '<option value="INSTITUTO DE CRIMINALISTICA">INSTITUTO DE CRIMINALISTICA</option>';
+                statusSelect.innerHTML += '<option value="DOP">DOP</option>';
+                statusSelect.innerHTML += '<option value="DESTRUIÇÃO">DESTRUIÇÃO</option>';
+            } else {
+                // Opções para OBJETO, SIMULACRO e ARMA BRANCA
+                statusSelect.innerHTML += '<option value="SECRIMPO">SECRIMPO</option>';
+                statusSelect.innerHTML += '<option value="CEGOC">CEGOC</option>';
+                statusSelect.innerHTML += '<option value="IC">IC</option>';
+            }
+        });
         
-        if (especieSelect && statusSelect) {
-            // Forçar inicialização do sistema de status
-            statusSelect.disabled = true;
-            especieSelect.addEventListener('change', updateStatusOptions);
-        }
-    }, 100);
+        // Inicializar o campo como desabilitado
+        statusSelect.disabled = true;
+    }
 });
 

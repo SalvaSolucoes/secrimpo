@@ -7,6 +7,55 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.2.0] - 2025
+
+**Atualização - Sistema de Filtros e Melhorias**
+
+### Adicionado
+- Sistema de filtros avançados para ocorrências e TCOs
+- Modal de filtros dedicado com campos específicos
+- Edição do campo "Nº Genesis" no modal de edição de ocorrências
+- Sistema de atualização automática via GitHub Releases
+- Verificação manual de atualizações no menu do usuário
+- Persistência de filtros selecionados
+- Preenchimento dinâmico de opções de filtro
+- Botão "Verificar Atualizações" no dropdown do usuário (cor verde)
+
+#### Sistema de Filtros de Ocorrências
+- Filtro por Nº Genesis (campo de texto)
+- Filtro por Data de Apreensão (range de datas: inicial e final)
+- Filtro por Unidade (dropdown preenchido dinamicamente)
+- Filtro por Status (dropdown preenchido dinamicamente)
+- Filtros combinados (AND entre campos)
+- Botão "Limpar" para resetar todos os filtros
+- Persistência dos filtros ao reabrir o modal
+
+#### Sistema de Filtros de TCOs
+- Filtro por RAP (Gênesis) (campo de texto)
+- Filtro por Ilícito (dropdown preenchido dinamicamente)
+- Filtro por Item (campo de texto)
+- Filtros combinados (AND entre campos)
+- Botão "Limpar" para resetar todos os filtros
+- Persistência dos filtros ao reabrir o modal
+
+#### Sistema de Atualizações
+- Verificação automática uma vez por dia ao abrir a aplicação
+- Verificação manual via botão no menu do usuário
+- Modal de atualização com informações da nova versão
+- Notas da versão (release notes) exibidas no modal
+- Link direto para download da atualização
+- Controle de intervalo de verificação (24 horas)
+- Tratamento robusto de erros (rate limit, repositório não encontrado, etc.)
+
+#### Melhorias na Edição
+- Campo "Nº Genesis" totalmente editável no modal de edição
+- Validação para não permitir Genesis vazio
+- Conversão automática para maiúsculas
+- Atualização automática do TCO correspondente quando o Genesis é alterado
+- Correção na busca de ocorrências quando o Genesis original é 'N/A'
+
+---
+
 ## [0.1.0] - 13/11/2025
 
 **Versão Inicial - Lançamento do Sistema SECRIMPO PMDF**
@@ -50,9 +99,10 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Migração automática de todas as ocorrências para TCO
 - Estrutura simplificada: RAP (GÊNESIS), Envolvido, Ilícito
 - Funcionalidades completas de CRUD
-- Tabela dedicada com busca e filtros
+- Tabela dedicada com sistema de filtros avançados
 - Modais de visualização, edição e exclusão
-- Exportação específica para Excel
+- Exportação específica para Excel com filtros
+- Sincronização automática do RAP quando o Genesis da ocorrência é alterado
 
 ---
 
@@ -128,7 +178,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
-#### Sistema de Atualizações
+#### Sistema de Atualizações (v0.1.0 - Depreciado)
 - Verificação automática via GitHub Releases
 - Notificações discretas na tela de login
 - Verificação silenciosa a cada 5 minutos
@@ -180,6 +230,11 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Posicionamento do botão "Nova Ocorrência" na navegação
 - Largura automática de colunas em exportações
 - Centralização de texto em relatórios Excel
+- Exibição correta do Genesis em ocorrências e TCOs (evitando conversão para Date)
+- Atualização do Genesis no Google Sheets usando getDisplayValue()
+- Sincronização do RAP (Gênesis) no TCO quando o Genesis da ocorrência é alterado
+- Busca de ocorrências quando o Genesis original é 'N/A' ou vazio
+- Tratamento de erros do GitHub API (400, 403, 404)
 
 ---
 
@@ -190,6 +245,11 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Verificações de atualização agora são silenciosas
 - Exportações baseadas em dados atuais da aplicação
 - Credenciais KeyAuth atualizadas para nova aplicação
+- Sistema de busca substituído por sistema de filtros avançados
+- Campo de busca antigo removido e substituído por botão de filtro
+- Ordem dos campos no modal de filtros: Data de Apreensão no topo
+- Sistema de atualizações melhorado com verificação diária automática
+- Modal de atualização com interface mais informativa
 
 ---
 
@@ -198,6 +258,8 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - Gráficos redundantes no dashboard
 - Janelas de console em modo produção
 - Verificações manuais obrigatórias de atualização
+- Campo de busca antigo (substituído por sistema de filtros)
+- Sistema de busca simples (substituído por filtros avançados)
 
 ---
 

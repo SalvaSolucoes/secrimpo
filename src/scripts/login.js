@@ -7,15 +7,6 @@ const rememberUserCheckbox = document.getElementById('rememberUser');
 const loginBtn = document.getElementById('loginBtn');
 const errorMessage = document.getElementById('errorMessage');
 
-// Elementos da notificação de atualização
-const updateNotification = document.getElementById('updateNotification');
-const updateVersionSpan = document.getElementById('updateVersion');
-const updateNowBtn = document.getElementById('updateNowBtn');
-const updateLaterBtn = document.getElementById('updateLaterBtn');
-
-// Variável para armazenar informações da atualização
-let currentUpdateInfo = null;
-
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -104,70 +95,4 @@ window.addEventListener('load', () => {
         rememberUserCheckbox.checked = false;
         usernameInput.focus();
     }
-
-    // Verificar atualizações silenciosamente ao carregar a tela de login
-    checkForUpdatesOnLogin();
-});
-
-// Verificar atualizações silenciosamente
-async function checkForUpdatesOnLogin() {
-    try {
-        const result = await ipcRenderer.invoke('check-for-updates-silent');
-        if (result.hasUpdate && result.updateInfo) {
-            showUpdateNotification(result.updateInfo);
-        }
-    } catch (error) {
-        console.log('Erro ao verificar atualizações:', error);
-    }
-}
-
-// Mostrar notificação de atualização
-function showUpdateNotification(updateInfo) {
-    currentUpdateInfo = updateInfo;
-    updateVersionSpan.textContent = updateInfo.latestVersion;
-    updateNotification.style.display = 'block';
-}
-
-// Ocultar notificação de atualização
-function hideUpdateNotification() {
-    updateNotification.style.display = 'none';
-    currentUpdateInfo = null;
-}
-
-// Event listeners para os botões da notificação
-updateNowBtn.addEventListener('click', () => {
-    if (currentUpdateInfo) {
-        // Iniciar processo de atualização
-        ipcRenderer.send('start-update', currentUpdateInfo);
-        hideUpdateNotification();
-    }
-});
-
-updateLaterBtn.addEventListener('click', () => {
-    hideUpdateNotification();
-});
-
-// Escutar eventos de atualização do processo principal
-ipcRenderer.on('update-available-silent', (event, updateInfo) => {
-    showUpdateNotification(updateInfo);
-});
-
-ipcRenderer.on('update-downloading', () => {
-    console.log('Download da atualização iniciado...');
-    // Opcionalmente, você pode mostrar um indicador de progresso aqui
-});
-
-ipcRenderer.on('download-progress', (event, progress) => {
-    console.log(`Progresso do download: ${progress}%`);
-    // Opcionalmente, você pode atualizar um indicador de progresso aqui
-});
-
-ipcRenderer.on('update-downloaded', () => {
-    console.log('Atualização baixada com sucesso!');
-    // Opcionalmente, você pode mostrar uma notificação de sucesso aqui
-});
-
-ipcRenderer.on('update-error', (event, error) => {
-    console.error('Erro na atualização:', error);
-    // Opcionalmente, você pode mostrar uma mensagem de erro aqui
 });

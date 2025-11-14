@@ -17,7 +17,9 @@ O SECRIMPO PMDF é uma aplicação desktop desenvolvida em Electron para gerenci
 - Exportação avançada para Excel com filtros personalizados
 - Geração de Termo de Apreensão e etiquetas de impressão
 - Integração completa com Google Sheets para armazenamento na nuvem
-- Sistema de atualizações automáticas
+- Sistema de atualizações automáticas via GitHub Releases
+- Sistema de filtros avançados para ocorrências e TCOs
+- Edição do campo Nº Genesis com sincronização automática
 
 ## Tecnologias Utilizadas
 
@@ -89,11 +91,15 @@ build-completo.bat
 - Máscaras automáticas para CPF, RG e datas
 - Sistema de status baseado na espécie do item
 - Conversão automática para maiúsculas
+- Edição do campo Nº Genesis com validação
+- Sistema de filtros avançados (Nº Genesis, Data, Unidade, Status)
 
 ### Sistema TCO
 - Migração automática de ocorrências para TCO
 - Funcionalidades completas de CRUD
 - Exportação específica para Excel
+- Sistema de filtros avançados (RAP, Ilícito, Item)
+- Sincronização automática do RAP quando o Genesis é alterado
 
 ### Preenchimento Automático
 - Suporte a arquivos PDF, Word e imagens
@@ -105,6 +111,12 @@ build-completo.bat
 - Filtros avançados por data, tipo e status
 - Geração de Termo de Apreensão
 - Etiquetas de apreensão para impressão
+
+### Sistema de Atualizações
+- Verificação automática uma vez por dia
+- Verificação manual via menu do usuário
+- Notificações discretas com modal informativo
+- Download direto da atualização
 
 ## Documentação
 
