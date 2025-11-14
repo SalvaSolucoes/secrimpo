@@ -7,7 +7,40 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
-## [0.2.0] - 2025
+## [0.3.0] - 15/01/2025
+
+**Atualização - Sistema de Suporte Integrado**
+
+### Adicionado
+- Sistema de suporte completo integrado com Discord
+- Botão "Suporte" no dropdown do menu do usuário
+- Modal de formulário de suporte com validação
+- Integração com Discord via webhook
+- Embed formatado com informações da solicitação
+- Sistema de prioridades (Baixa, Média, Alta, Urgente)
+- Notificação automática com @everyone no Discord
+- Cores dinâmicas no embed baseadas na prioridade:
+  - Urgente: Vermelho
+  - Alta: Laranja
+  - Média: Amarelo
+  - Baixa: Verde
+- Preenchimento automático do nome do usuário no formulário
+- Formatação de data e hora em português brasileiro
+- Tratamento de descrições longas (truncamento automático)
+
+#### Sistema de Suporte
+- Formulário modal acessível via dropdown do usuário
+- Campos obrigatórios: Nome, Unidade, Prioridade, Problema, Descrição
+- Validação completa de campos antes do envio
+- Envio assíncrono com feedback visual
+- Integração direta com Discord webhook
+- Embed profissional sem emojis
+- Estrutura organizada em campos verticais
+- Timestamp automático no embed
+
+---
+
+## [0.2.0] - 15/01/2025
 
 **Atualização - Sistema de Filtros e Melhorias**
 

@@ -140,6 +140,100 @@ logoutBtn.addEventListener('click', () => {
     );
 });
 
+// ==================== FUNCIONALIDADE DE SUPORTE ====================
+
+// Elementos do modal de suporte
+const suporteBtn = document.getElementById('suporteBtn');
+const suporteModal = document.getElementById('suporteModal');
+const suporteModalClose = document.getElementById('suporteModalClose');
+const suporteCancelBtn = document.getElementById('suporteCancelBtn');
+const suporteSubmitBtn = document.getElementById('suporteSubmitBtn');
+const suporteForm = document.getElementById('suporteForm');
+
+// Abrir modal de suporte
+if (suporteBtn) {
+    suporteBtn.addEventListener('click', () => {
+        // Preencher nome automaticamente se disponível
+        const username = sessionStorage.getItem('username');
+        if (username && document.getElementById('suporteNome')) {
+            document.getElementById('suporteNome').value = username;
+        }
+        suporteModal.classList.add('active');
+        userDropdown.classList.remove('active'); // Fechar dropdown
+    });
+}
+
+// Fechar modal de suporte
+if (suporteModalClose) {
+    suporteModalClose.addEventListener('click', () => {
+        suporteModal.classList.remove('active');
+        suporteForm.reset();
+    });
+}
+
+if (suporteCancelBtn) {
+    suporteCancelBtn.addEventListener('click', () => {
+        suporteModal.classList.remove('active');
+        suporteForm.reset();
+    });
+}
+
+// Fechar modal ao clicar fora
+if (suporteModal) {
+    suporteModal.addEventListener('click', (e) => {
+        if (e.target === suporteModal) {
+            suporteModal.classList.remove('active');
+            suporteForm.reset();
+        }
+    });
+}
+
+// Enviar formulário de suporte
+if (suporteSubmitBtn) {
+    suporteSubmitBtn.addEventListener('click', async () => {
+        if (!suporteForm.checkValidity()) {
+            suporteForm.reportValidity();
+            return;
+        }
+
+        const formData = {
+            nome: document.getElementById('suporteNome').value.trim(),
+            unidade: document.getElementById('suporteUnidade').value,
+            problema: document.getElementById('suporteProblema').value.trim(),
+            prioridade: document.getElementById('suportePrioridade').value,
+            descricao: document.getElementById('suporteDescricao').value.trim()
+        };
+
+        // Validar campos
+        if (!formData.nome || !formData.unidade || !formData.problema || !formData.prioridade || !formData.descricao) {
+            customAlert.error('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        // Desabilitar botão durante envio
+        suporteSubmitBtn.disabled = true;
+        suporteSubmitBtn.textContent = 'Enviando...';
+
+        try {
+            const result = await ipcRenderer.invoke('send-support-request', formData);
+            
+            if (result.success) {
+                customAlert.success('Solicitação de suporte enviada com sucesso!');
+                suporteModal.classList.remove('active');
+                suporteForm.reset();
+            } else {
+                customAlert.error('Erro ao enviar solicitação: ' + (result.message || 'Erro desconhecido'));
+            }
+        } catch (error) {
+            console.error('Erro ao enviar suporte:', error);
+            customAlert.error('Erro ao enviar solicitação de suporte: ' + error.message);
+        } finally {
+            suporteSubmitBtn.disabled = false;
+            suporteSubmitBtn.textContent = 'Enviar';
+        }
+    });
+}
+
 // Funções auxiliares
 function showLoading(text = 'Processando', subtext = 'Aguarde um momento') {
     loadingText.textContent = text;
@@ -504,27 +598,51 @@ function fillFormWithExtractedData(data) {
         return typeof value === 'string' ? value.toUpperCase() : value;
     }
     
-    // Preencher campos se os dados existirem, convertendo para maiúsculas
+    // Dados da Ocorrência
     if (data.numeroGenesis) {
         document.getElementById('numeroGenesis').value = toUpperCase(data.numeroGenesis);
+    }
+    
+    if (data.unidade) {
+        const unidadeField = document.getElementById('unidade');
+        if (unidadeField) {
+            unidadeField.value = data.unidade;
+        }
     }
     
     if (data.dataApreensao) {
         document.getElementById('dataApreensao').value = data.dataApreensao;
     }
     
+    if (data.leiInfrigida) {
+        document.getElementById('leiInfrigida').value = toUpperCase(data.leiInfrigida);
+    }
+    
     if (data.artigo) {
         document.getElementById('artigo').value = toUpperCase(data.artigo);
+    }
+    
+    if (data.numeroPje) {
+        document.getElementById('numeroPje').value = toUpperCase(data.numeroPje);
+    }
+    
+    // Item Apreendido
+    if (data.especie) {
+        document.getElementById('especie').value = data.especie; // Select mantém valor original
+        // Trigger change event para atualizar as opções do status
+        document.getElementById('especie').dispatchEvent(new Event('change'));
+    }
+    
+    if (data.item) {
+        document.getElementById('item').value = toUpperCase(data.item);
     }
     
     if (data.quantidade) {
         document.getElementById('quantidade').value = toUpperCase(data.quantidade);
     }
     
-    if (data.especie) {
-        document.getElementById('especie').value = data.especie; // Select mantém valor original
-        // Trigger change event para atualizar as opções do status
-        document.getElementById('especie').dispatchEvent(new Event('change'));
+    if (data.descricaoItem) {
+        document.getElementById('descricaoItem').value = data.descricaoItem;
     }
     
     if (data.status) {
@@ -534,7 +652,7 @@ function fillFormWithExtractedData(data) {
         }, 100);
     }
     
-    // Dados do proprietário
+    // Dados do Proprietário
     if (data.nomeProprietario) {
         document.getElementById('nomeProprietario').value = toUpperCase(data.nomeProprietario);
     }
@@ -549,8 +667,21 @@ function fillFormWithExtractedData(data) {
         document.getElementById('numeroDocumento').value = toUpperCase(data.numeroDocumento);
     }
     
+    // Dados do Policial
+    if (data.nomePolicial) {
+        document.getElementById('nomePolicial').value = toUpperCase(data.nomePolicial);
+    }
+    
     if (data.matricula) {
         document.getElementById('matricula').value = toUpperCase(data.matricula);
+    }
+    
+    if (data.graduacao) {
+        document.getElementById('graduacao').value = data.graduacao; // Select mantém valor original
+    }
+    
+    if (data.unidadePolicial) {
+        document.getElementById('unidadePolicial').value = toUpperCase(data.unidadePolicial);
     }
     
     // Adicionar classe de destaque aos campos preenchidos

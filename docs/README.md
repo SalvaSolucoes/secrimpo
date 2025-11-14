@@ -20,6 +20,7 @@ O SECRIMPO PMDF é uma aplicação desktop desenvolvida em Electron para gerenci
 - Sistema de atualizações automáticas via GitHub Releases
 - Sistema de filtros avançados para ocorrências e TCOs
 - Edição do campo Nº Genesis com sincronização automática
+- Sistema de suporte integrado com Discord via webhook
 
 ## Tecnologias Utilizadas
 
@@ -117,6 +118,15 @@ build-completo.bat
 - Verificação manual via menu do usuário
 - Notificações discretas com modal informativo
 - Download direto da atualização
+
+### Sistema de Suporte
+- Formulário de suporte acessível via menu do usuário
+- Campos: Nome, Unidade, Prioridade, Problema e Descrição
+- Integração com Discord via webhook
+- Embed formatado com informações da solicitação
+- Sistema de prioridades (Baixa, Média, Alta, Urgente)
+- Notificação automática com @everyone no Discord
+- Cores dinâmicas no embed baseadas na prioridade
 
 ## Documentação
 

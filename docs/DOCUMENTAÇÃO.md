@@ -150,6 +150,9 @@ SecrimpoPMDF/
 'load-panel'               // Carregar painel de ocorrências
 'check-updates-manual'     // Verificar atualizações manualmente
 'open-external-url'        // Abrir URL externa (download de atualização)
+
+// Suporte
+'send-support-request'     // Enviar solicitação de suporte para Discord
 ```
 
 ### 2. Dashboard (src/scripts/dashboard.js)
@@ -200,6 +203,7 @@ showUpdateModal()          // Exibir modal de atualização
 - Validação de campos
 - Máscaras de entrada
 - Integração com extração de documentos
+- Sistema de suporte integrado
 
 **Validações Implementadas:**
 ```javascript
@@ -213,6 +217,15 @@ updateGenesisYear()        // Atualizar ano no Genesis
 
 // Campos obrigatórios
 validateRequiredFields()   // Validar campos obrigatórios
+```
+
+**Sistema de Suporte:**
+```javascript
+// Modal de suporte
+openSuporteModal()         // Abrir modal de suporte
+closeSuporteModal()        // Fechar modal de suporte
+submitSuporteForm()        // Enviar formulário de suporte
+validateSuporteForm()      // Validar campos do formulário
 ```
 
 ### 4. File Extractor (src/scripts/fileExtractor.js)
@@ -280,7 +293,28 @@ sequenceDiagram
     D->>U: Exibe interface
 ```
 
-### 3. Autenticação
+### 3. Sistema de Suporte
+
+```mermaid
+sequenceDiagram
+    participant U as Usuário
+    participant F as Frontend
+    participant M as Main.js
+    participant D as Discord Webhook
+
+    U->>F: Clica em "Suporte"
+    F->>F: Abre modal de formulário
+    U->>F: Preenche formulário
+    F->>F: Valida campos
+    F->>M: send-support-request (IPC)
+    M->>M: Formata embed do Discord
+    M->>D: POST request com embed
+    D->>M: Resposta de sucesso
+    M->>F: Confirmação (IPC)
+    F->>U: Exibe sucesso
+```
+
+### 4. Autenticação
 
 ```mermaid
 sequenceDiagram
@@ -377,6 +411,44 @@ keyauth.fetchOnline()           # Usuários online
 - Armazenamento local da última verificação
 - Tratamento de erros (rate limit, repositório não encontrado, etc.)
 - Modal de notificação com informações da nova versão
+
+### 4. Discord Webhook API
+
+**URL:** Configurada em `src/main.js` (variável `DISCORD_WEBHOOK_URL`)
+
+**Uso:** Envio de solicitações de suporte para canal do Discord
+
+**Funcionalidades:**
+- Envio de embeds formatados com informações do suporte
+- Notificação automática com @everyone
+- Cores dinâmicas baseadas na prioridade
+- Formatação de data e hora em português brasileiro
+- Tratamento de descrições longas (limite de 1000 caracteres)
+
+**Estrutura do Embed:**
+```javascript
+{
+  title: 'Nova Solicitação de Suporte',
+  color: embedColor, // Baseado na prioridade
+  fields: [
+    { name: 'Solicitante', value: '...' },
+    { name: 'Unidade', value: '...' },
+    { name: 'Prioridade', value: '...' },
+    { name: 'Problema', value: '...' },
+    { name: 'Descrição', value: '...' },
+    { name: 'Data e Hora', value: '...' }
+  ],
+  timestamp: '...',
+  footer: { text: 'SECRIMPO PMDF - Sistema de Suporte' }
+}
+```
+
+**Prioridades e Cores:**
+- **Urgente**: Vermelho (0xff0000)
+- **Alta**: Laranja (0xff6600)
+- **Média**: Amarelo (0xffaa00)
+- **Baixa**: Verde (0x00ff00)
+- **Padrão**: Azul escuro (0x071d49)
 
 ---
 
@@ -496,6 +568,26 @@ keyauth.fetchOnline()           # Usuários online
 - **Item**: Campo de texto para busca por item
 - **Persistência**: Filtros mantidos ao reabrir o modal
 - **Combinação**: Filtros funcionam em conjunto (AND)
+
+### Sistema de Suporte
+
+#### Formulário de Suporte
+- **Acesso**: Menu dropdown do usuário → "Suporte"
+- **Campos**:
+  - Nome (preenchido automaticamente se disponível)
+  - Unidade (dropdown: 8º BPM, 10º BPM, 16º BPM)
+  - Prioridade (dropdown: Baixa, Média, Alta, Urgente)
+  - Problema (campo de texto)
+  - Descrição (textarea)
+- **Validação**: Todos os campos são obrigatórios
+- **Envio**: Assíncrono com feedback visual
+
+#### Integração Discord
+- **Webhook**: Configurado em `src/main.js`
+- **Formato**: Embed do Discord
+- **Notificação**: @everyone automático
+- **Cores**: Dinâmicas baseadas na prioridade
+- **Estrutura**: Campos verticais organizados
 
 ### Componentes Reutilizáveis
 
@@ -865,6 +957,6 @@ O sistema **SECRIMPO PMDF** é propriedade intelectual exclusiva da Salva Soluç
 
 ---
 
-**Última atualização**: 13/11/2025  
-**Versão do sistema**: 0.1.0  
+**Última atualização**: 2025  
+**Versão do sistema**: 0.3.0  
 **Desenvolvido por**: Salva Soluções Ltda

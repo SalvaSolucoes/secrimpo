@@ -1338,6 +1338,100 @@ logoutBtn.addEventListener('click', () => {
     );
 });
 
+// ==================== FUNCIONALIDADE DE SUPORTE ====================
+
+// Elementos do modal de suporte
+const suporteBtn = document.getElementById('suporteBtn');
+const suporteModal = document.getElementById('suporteModal');
+const suporteModalClose = document.getElementById('suporteModalClose');
+const suporteCancelBtn = document.getElementById('suporteCancelBtn');
+const suporteSubmitBtn = document.getElementById('suporteSubmitBtn');
+const suporteForm = document.getElementById('suporteForm');
+
+// Abrir modal de suporte
+if (suporteBtn) {
+    suporteBtn.addEventListener('click', () => {
+        // Preencher nome automaticamente se disponível
+        const username = sessionStorage.getItem('username');
+        if (username && document.getElementById('suporteNome')) {
+            document.getElementById('suporteNome').value = username;
+        }
+        suporteModal.classList.add('active');
+        userDropdown.classList.remove('active'); // Fechar dropdown
+    });
+}
+
+// Fechar modal de suporte
+if (suporteModalClose) {
+    suporteModalClose.addEventListener('click', () => {
+        suporteModal.classList.remove('active');
+        suporteForm.reset();
+    });
+}
+
+if (suporteCancelBtn) {
+    suporteCancelBtn.addEventListener('click', () => {
+        suporteModal.classList.remove('active');
+        suporteForm.reset();
+    });
+}
+
+// Fechar modal ao clicar fora
+if (suporteModal) {
+    suporteModal.addEventListener('click', (e) => {
+        if (e.target === suporteModal) {
+            suporteModal.classList.remove('active');
+            suporteForm.reset();
+        }
+    });
+}
+
+// Enviar formulário de suporte
+if (suporteSubmitBtn) {
+    suporteSubmitBtn.addEventListener('click', async () => {
+        if (!suporteForm.checkValidity()) {
+            suporteForm.reportValidity();
+            return;
+        }
+
+        const formData = {
+            nome: document.getElementById('suporteNome').value.trim(),
+            unidade: document.getElementById('suporteUnidade').value,
+            problema: document.getElementById('suporteProblema').value.trim(),
+            prioridade: document.getElementById('suportePrioridade').value,
+            descricao: document.getElementById('suporteDescricao').value.trim()
+        };
+
+        // Validar campos
+        if (!formData.nome || !formData.unidade || !formData.problema || !formData.prioridade || !formData.descricao) {
+            customAlert.error('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        // Desabilitar botão durante envio
+        suporteSubmitBtn.disabled = true;
+        suporteSubmitBtn.textContent = 'Enviando...';
+
+        try {
+            const result = await ipcRenderer.invoke('send-support-request', formData);
+            
+            if (result.success) {
+                customAlert.success('Solicitação de suporte enviada com sucesso!');
+                suporteModal.classList.remove('active');
+                suporteForm.reset();
+            } else {
+                customAlert.error('Erro ao enviar solicitação: ' + (result.message || 'Erro desconhecido'));
+            }
+        } catch (error) {
+            console.error('Erro ao enviar suporte:', error);
+            customAlert.error('Erro ao enviar solicitação de suporte: ' + error.message);
+        } finally {
+            suporteSubmitBtn.disabled = false;
+            suporteSubmitBtn.textContent = 'Enviar';
+        }
+    });
+}
+
 // Modal events
 modalClose.addEventListener('click', closeModal);
 btnCancelEdit.addEventListener('click', closeModal);

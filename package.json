@@ -90,7 +90,9 @@
       "src/**/*",
       "assets/**/*"
     ],
-    "asarUnpack": [],
+    "asarUnpack": [
+      "node_modules/pdfjs-dist/**/*"
+    ],
     "extraResources": [
       {
         "from": "auth/dist/auth_keyauth.exe",

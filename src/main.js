@@ -1509,6 +1509,165 @@ ipcMain.handle('get-tcos', async (event) => {
   }
 });
 
+// IPC Handler para enviar solicitação de suporte para Discord
+ipcMain.handle('send-support-request', async (event, formData) => {
+  try {
+    // URL do webhook do Discord
+    const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || 'Credencial Removida';
+    
+    if (!DISCORD_WEBHOOK_URL) {
+      console.warn('⚠ Discord webhook URL não configurada');
+      return { 
+        success: false, 
+        message: 'Webhook do Discord não configurado. Entre em contato com o administrador.' 
+      };
+    }
+    
+    const https = require('https');
+    const url = require('url');
+    
+    // Formatar data e hora
+    const now = new Date();
+    const dataFormatada = now.toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    });
+    const horaFormatada = now.toLocaleTimeString('pt-BR', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    
+    // Truncar descrição se muito longa (limite do Discord é 1024 caracteres por field)
+    const descricaoFormatada = formData.descricao && formData.descricao.length > 1000 
+      ? formData.descricao.substring(0, 997) + '...' 
+      : (formData.descricao || 'Não informado');
+    
+    // Determinar cor baseada na prioridade
+    let embedColor = 0x071d49; // Cor padrão (azul escura)
+    if (formData.prioridade === 'Urgente') {
+      embedColor = 0xff0000; // Vermelho
+    } else if (formData.prioridade === 'Alta') {
+      embedColor = 0xff6600; // Laranja
+    } else if (formData.prioridade === 'Média') {
+      embedColor = 0xffaa00; // Amarelo
+    } else if (formData.prioridade === 'Baixa') {
+      embedColor = 0x00ff00; // Verde
+    }
+    
+    // Criar embed do Discord simplificado e organizado
+    const embed = {
+      title: 'Nova Solicitação de Suporte',
+      color: embedColor,
+      fields: [
+        {
+          name: 'Solicitante',
+          value: `\`\`\`\n${formData.nome || 'Não informado'}\n\`\`\``,
+          inline: false
+        },
+        {
+          name: 'Unidade',
+          value: `\`\`\`\n${formData.unidade || 'Não informado'}\n\`\`\``,
+          inline: false
+        },
+        {
+          name: 'Prioridade',
+          value: `\`\`\`\n${formData.prioridade || 'Não informado'}\n\`\`\``,
+          inline: false
+        },
+        {
+          name: 'Problema',
+          value: `\`\`\`\n${formData.problema || 'Não informado'}\n\`\`\``,
+          inline: false
+        },
+        {
+          name: 'Descrição',
+          value: `\`\`\`\n${descricaoFormatada}\n\`\`\``,
+          inline: false
+        },
+        {
+          name: 'Data e Hora',
+          value: `\`\`\`\n${dataFormatada} às ${horaFormatada}\n\`\`\``,
+          inline: false
+        }
+      ],
+      timestamp: now.toISOString(),
+      footer: {
+        text: 'SECRIMPO SUPORTE'
+      }
+    };
+    
+    const payload = {
+      content: '@everyone',
+      embeds: [embed]
+    };
+    
+    const postData = JSON.stringify(payload);
+    
+    // Função para enviar POST para Discord
+    const sendToDiscord = (webhookUrl, payload) => {
+      return new Promise((resolve, reject) => {
+        const parsedUrl = url.parse(webhookUrl);
+        
+        const options = {
+          hostname: parsedUrl.hostname,
+          path: parsedUrl.path,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        };
+        
+        const req = https.request(options, (res) => {
+          let responseData = '';
+          
+          res.on('data', (chunk) => {
+            responseData += chunk;
+          });
+          
+          res.on('end', () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              resolve({ success: true, response: responseData });
+            } else {
+              reject(new Error(`Discord API retornou status ${res.statusCode}: ${responseData}`));
+            }
+          });
+        });
+        
+        req.on('error', (error) => {
+          reject(error);
+        });
+        
+        req.write(payload);
+        req.end();
+      });
+    };
+    
+    try {
+      await sendToDiscord(DISCORD_WEBHOOK_URL, postData);
+      console.log('✓ Solicitação de suporte enviada para Discord');
+      return { 
+        success: true, 
+        message: 'Solicitação de suporte enviada com sucesso!' 
+      };
+    } catch (error) {
+      console.error('Erro ao enviar para Discord:', error);
+      return { 
+        success: false, 
+        message: 'Erro ao enviar para Discord: ' + error.message 
+      };
+    }
+  } catch (error) {
+    console.error('Erro ao processar solicitação de suporte:', error);
+    return { 
+      success: false, 
+      message: 'Erro ao processar solicitação: ' + error.message 
+    };
+  }
+});
+
 // IPC Handler para exportar TCOs para Excel
 ipcMain.handle('export-tcos', async (event, tcoData) => {
   try {

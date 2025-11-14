@@ -1143,6 +1143,50 @@ body {
     min-height: 80px;
 }
 
+/* Formulário de Suporte */
+.suporte-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.suporte-form .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.suporte-form .form-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.suporte-form .form-group input,
+.suporte-form .form-group select,
+.suporte-form .form-group textarea {
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.suporte-form .form-group input:focus,
+.suporte-form .form-group select:focus,
+.suporte-form .form-group textarea:focus {
+    outline: none;
+    border-color: #071d49;
+    box-shadow: 0 0 0 3px rgba(7, 29, 73, 0.1);
+}
+
+.suporte-form .form-group textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
 .delete-warning {
     background: #fff3e0;
     padding: 16px;
