@@ -7,7 +7,45 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
-<<<<<<< HEAD
+## [0.3.1] - 15/11/2025
+
+**Atualização - Correções e Melhorias de UX**
+
+### Corrigido
+- Dropdown do menu do usuário na tela "Nova Ocorrência" agora inclui o item "Verificar Atualizações"
+- Ícone do usuário no dropdown corrigido (adicionado path completo do corpo)
+- Formulário não mantém dados ao sair e voltar - limpeza automática implementada
+- Upload de arquivos não abre múltiplas vezes o seletor de arquivo
+- Estado do upload de arquivos é resetado corretamente ao voltar para seleção de modo
+
+### Alterado
+- Modais com formulários (Suporte, Edição) não fecham mais ao clicar fora - apenas através dos botões de fechar/cancelar
+- Campo de descrição (textarea) agora ajusta altura automaticamente conforme o conteúdo
+- Removido ícone de redimensionamento manual do campo de descrição
+- Limpeza automática do formulário ao:
+  - Carregar a página
+  - Clicar em "Controle de Ocorrências"
+  - Clicar em "Voltar" do formulário
+  - Clicar em "Voltar" da tela de upload
+  - Selecionar "Preenchimento Manual"
+- **Organização de exportações em subpastas:**
+  - Exportações de Ocorrências agora são salvas em `C:\SECRIMPO\Exportacao\Ocorrencias\`
+  - Exportações de TCOs agora são salvas em `C:\SECRIMPO\Exportacao\Tco\`
+  - Melhor organização e separação dos arquivos exportados
+
+### Melhorias de Interface
+- Auto-resize do textarea de descrição mantém tamanho mínimo de 80px e expande automaticamente
+- Dropdown do menu do usuário padronizado entre dashboard e nova ocorrência
+- Melhor experiência ao trabalhar com formulários - dados não são perdidos acidentalmente
+- Estrutura de pastas organizada para facilitar localização de arquivos exportados
+- **Indicador visual de filtros ativos:**
+  - Botão de filtro muda de cor cinza (padrão) para verde quando há filtros aplicados
+  - Funciona tanto para Ocorrências quanto para TCOs
+  - Atualização automática ao aplicar, limpar ou carregar dados
+  - Feedback visual imediato sobre o estado dos filtros
+
+---
+
 ## [0.3.0] - 15/01/2025
 
 **Atualização - Sistema de Suporte Integrado**
@@ -42,9 +80,6 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 ---
 
 ## [0.2.0] - 15/01/2025
-=======
-## [0.2.0] - 14/11/2025
->>>>>>> df68d628a1cac7dd483a5a41ab91eabe4ec3acdb
 
 **Atualização - Sistema de Filtros e Melhorias**
 

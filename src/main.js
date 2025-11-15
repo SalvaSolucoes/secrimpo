@@ -11,6 +11,8 @@ const BASE_DIR = 'C:\\SECRIMPO';
 const FOLDERS = {
   ocorrencias: path.join(BASE_DIR, 'Ocorrencias'),
   exportacoes: path.join(BASE_DIR, 'Exportacao'),
+  exportacoesOcorrencias: path.join(BASE_DIR, 'Exportacao', 'Ocorrencias'),
+  exportacoesTco: path.join(BASE_DIR, 'Exportacao', 'Tco'),
   termos: path.join(BASE_DIR, 'Termos')
 };
 
@@ -154,11 +156,12 @@ function sendUpdateNotification(updateInfo) {
   }
 }
 
-// IPC Handler para verificar atualizações manualmente
+// IPC Handler para verificar atualizações manualmente (sem restrição de tempo)
 ipcMain.handle('check-updates-manual', async () => {
   try {
     const currentVersion = packageJson.version;
-    const updateInfo = await updater.checkForUpdate(currentVersion);
+    // force = true para ignorar a restrição de 24 horas
+    const updateInfo = await updater.checkForUpdate(currentVersion, true);
     return updateInfo;
   } catch (error) {
     console.error('Erro ao verificar atualizações manualmente:', error);
@@ -174,6 +177,52 @@ ipcMain.handle('open-external-url', async (event, url) => {
   } catch (error) {
     console.error('Erro ao abrir URL:', error);
     return { success: false, error: error.message };
+  }
+});
+
+// IPC Handler para baixar e instalar atualização automaticamente
+ipcMain.handle('download-and-install-update', async (event, updateInfo) => {
+  try {
+    if (!updateInfo || !updateInfo.installerUrl || !updateInfo.installerName) {
+      return { 
+        success: false, 
+        error: 'Informações de instalação não disponíveis. Por favor, baixe manualmente.' 
+      };
+    }
+
+    // Enviar progresso para o renderer
+    const sendProgress = (percent, downloaded, total, message) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-download-progress', {
+          percent,
+          downloaded,
+          total,
+          message
+        });
+      }
+    };
+
+    // Baixar e instalar
+    await updater.downloadAndInstall(
+      updateInfo.installerUrl,
+      updateInfo.installerName,
+      sendProgress
+    );
+
+    console.log('✓ Atualização baixada e instalação iniciada');
+    
+    // Aguardar um pouco antes de fechar a aplicação
+    setTimeout(() => {
+      app.quit();
+    }, 2000);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao baixar e instalar atualização:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Erro desconhecido ao baixar/instalar atualização' 
+    };
   }
 });
 
@@ -1123,10 +1172,10 @@ ipcMain.handle('export-occurrences', async (event, occurrencesData) => {
     
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Todas Ocorrências');
     
-    // Salvar arquivo em C:\SECRIMPO\Exportacao
+    // Salvar arquivo em C:\SECRIMPO\Exportacao\Ocorrencias
     const dateStr = formatDateForFilename();
     const exportFilename = `[EXPORTACAO][${dateStr}].xlsx`;
-    const exportPath = path.join(FOLDERS.exportacoes, exportFilename);
+    const exportPath = path.join(FOLDERS.exportacoesOcorrencias, exportFilename);
     
     XLSX.writeFile(workbook, exportPath);
     console.log('✓ Exportação salva em:', exportPath);
@@ -1710,10 +1759,10 @@ ipcMain.handle('export-tcos', async (event, tcoData) => {
     
     XLSX.utils.book_append_sheet(workbook, worksheet, 'TCOs');
     
-    // Salvar arquivo em C:\SECRIMPO\Exportacao
+    // Salvar arquivo em C:\SECRIMPO\Exportacao\Tco
     const dateStr = formatDateForFilename();
-    const exportFilename = `[EXPORTACAO_TCO][${dateStr}].xlsx`;
-    const exportPath = path.join(FOLDERS.exportacoes, exportFilename);
+    const exportFilename = `[EXPORTACAO][${dateStr}].xlsx`;
+    const exportPath = path.join(FOLDERS.exportacoesTco, exportFilename);
     
     XLSX.writeFile(workbook, exportPath);
     console.log('✓ Exportação de TCOs salva em:', exportPath);

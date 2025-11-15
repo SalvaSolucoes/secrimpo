@@ -9,6 +9,7 @@ const errorMessage = document.getElementById('errorMessage');
 const userInfo = document.getElementById('userInfo');
 const userMenuBtn = document.getElementById('userMenuBtn');
 const userDropdown = document.getElementById('userDropdown');
+const checkUpdatesBtn = document.getElementById('checkUpdatesBtn');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const loadingText = document.getElementById('loadingText');
 const loadingSubtext = document.getElementById('loadingSubtext');
@@ -17,6 +18,18 @@ const loadingSubtext = document.getElementById('loadingSubtext');
 const tabDashboard = document.getElementById('tabDashboard');
 const tabNovaOcorrencia = document.getElementById('tabNovaOcorrencia');
 
+// Função para auto-resize do textarea de descrição
+function autoResizeTextarea(textarea) {
+    if (!textarea) return;
+    
+    // Resetar altura para calcular o scrollHeight corretamente
+    textarea.style.height = 'auto';
+    
+    // Definir altura baseada no conteúdo
+    const newHeight = Math.max(80, textarea.scrollHeight);
+    textarea.style.height = newHeight + 'px';
+}
+
 // Carregar informações do usuário
 window.addEventListener('load', () => {
     const username = sessionStorage.getItem('username');
@@ -24,8 +37,26 @@ window.addEventListener('load', () => {
         userInfo.textContent = `${username}`;
     }
     
+    // Limpar formulário ao carregar a página
+    clearForm();
+    
+    // Resetar estado de upload ao carregar
+    resetFileUploadState();
+    
     // Inicializar calendários Flatpickr
     initializeDatePickers();
+    
+    // Configurar auto-resize para o textarea de descrição
+    const descricaoItem = document.getElementById('descricaoItem');
+    if (descricaoItem) {
+        // Auto-resize ao digitar
+        descricaoItem.addEventListener('input', () => {
+            autoResizeTextarea(descricaoItem);
+        });
+        
+        // Auto-resize inicial
+        autoResizeTextarea(descricaoItem);
+    }
 });
 
 // Submit do formulário
@@ -178,15 +209,8 @@ if (suporteCancelBtn) {
     });
 }
 
-// Fechar modal ao clicar fora
-if (suporteModal) {
-    suporteModal.addEventListener('click', (e) => {
-        if (e.target === suporteModal) {
-            suporteModal.classList.remove('active');
-            suporteForm.reset();
-        }
-    });
-}
+// Não fechar modal ao clicar fora (modal contém formulário)
+// O modal só fecha através dos botões de fechar/cancelar
 
 // Enviar formulário de suporte
 if (suporteSubmitBtn) {
@@ -234,6 +258,32 @@ if (suporteSubmitBtn) {
     });
 }
 
+// ==================== FUNCIONALIDADE DE VERIFICAR ATUALIZAÇÕES ====================
+
+if (checkUpdatesBtn) {
+    checkUpdatesBtn.addEventListener('click', async () => {
+        showLoading('Verificando atualizações', 'Buscando novas versões...');
+        try {
+            const result = await ipcRenderer.invoke('check-updates-manual');
+            hideLoading();
+            
+            if (result && result.error) {
+                customAlert.error('Erro ao verificar atualizações: ' + result.error);
+            } else if (result && result.available) {
+                customAlert.info('Nova versão disponível! Versão ' + result.version + '. Verifique as atualizações no dashboard.');
+            } else if (result && !result.available) {
+                customAlert.success('Você está usando a versão mais recente do aplicativo!');
+            } else {
+                customAlert.info('Não foi possível verificar atualizações no momento. Tente novamente mais tarde.');
+            }
+        } catch (error) {
+            console.error('Erro ao verificar atualizações:', error);
+            hideLoading();
+            customAlert.error('Erro ao verificar atualizações: ' + error.message);
+        }
+    });
+}
+
 // Funções auxiliares
 function showLoading(text = 'Processando', subtext = 'Aguarde um momento') {
     loadingText.textContent = text;
@@ -265,15 +315,28 @@ function hideMessages() {
 }
 
 function clearForm() {
+    if (!occurrenceForm) return;
+    
     occurrenceForm.reset();
     hideMessages();
     hideLoading();
     
     // Reinicializar calendários com data atual
-    initializeDatePickers();
+    if (typeof initializeDatePickers === 'function') {
+        initializeDatePickers();
+    }
     
-    // Focar no primeiro campo
-    document.getElementById('numeroGenesis').focus();
+    // Resetar altura do textarea de descrição
+    const descricaoItem = document.getElementById('descricaoItem');
+    if (descricaoItem) {
+        autoResizeTextarea(descricaoItem);
+    }
+    
+    // Focar no primeiro campo se existir
+    const numeroGenesis = document.getElementById('numeroGenesis');
+    if (numeroGenesis) {
+        numeroGenesis.focus();
+    }
 }
 
 // Máscara para data no formato brasileiro (dd/mm/aaaa)
@@ -429,12 +492,6 @@ document.getElementById('numeroGenesis').addEventListener('input', function(e) {
     updateGenesisWithYear();
 });
 
-
-// Navigation tab events
-tabDashboard.addEventListener('click', () => {
-    ipcRenderer.send('load-dashboard');
-});
-
 // ==================== FUNCIONALIDADE DE PREENCHIMENTO POR ARQUIVO ====================
 
 // Elementos da interface
@@ -458,41 +515,104 @@ const extractBtn = document.getElementById('extractBtn');
 
 let selectedFile = null;
 
+// Função para resetar estado de upload de arquivo
+function resetFileUploadState() {
+    selectedFile = null;
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    if (uploadArea) {
+        uploadArea.style.display = 'block';
+    }
+    if (fileInfo) {
+        fileInfo.style.display = 'none';
+    }
+    if (uploadArea) {
+        uploadArea.classList.remove('drag-over');
+    }
+}
+
+// Navigation tab events
+tabDashboard.addEventListener('click', () => {
+    // Limpar formulário ao sair da tela de nova ocorrência
+    clearForm();
+    // Resetar estado de upload
+    resetFileUploadState();
+    // Resetar para tela de seleção de modo
+    if (modeSelectionScreen) modeSelectionScreen.style.display = 'flex';
+    if (formWrapper) formWrapper.style.display = 'none';
+    if (fileUploadSection) fileUploadSection.style.display = 'none';
+    ipcRenderer.send('load-dashboard');
+});
+
 // Navegar para modo manual - vai direto para o formulário
 selectManualMode.addEventListener('click', () => {
+    // Limpar formulário antes de mostrar
+    clearForm();
     modeSelectionScreen.style.display = 'none';
     formWrapper.style.display = 'block';
+    // Garantir que o textarea tenha altura correta ao mostrar o formulário
+    setTimeout(() => {
+        const descricaoItem = document.getElementById('descricaoItem');
+        if (descricaoItem) {
+            autoResizeTextarea(descricaoItem);
+        }
+    }, 10);
 });
 
 // Modo arquivo - abre o seletor de arquivo imediatamente
-selectFileMode.addEventListener('click', () => {
-    fileInput.click();
+selectFileMode.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Resetar estado de upload antes de abrir seletor
+    resetFileUploadState();
+    // Mostrar tela de upload
+    modeSelectionScreen.style.display = 'none';
+    fileUploadSection.style.display = 'block';
+    // Limpar o valor do input para garantir que o evento change seja disparado
+    if (fileInput) {
+        fileInput.value = '';
+        // Abrir seletor imediatamente
+        fileInput.click();
+    }
 });
 
 // Voltar da tela de upload para seleção
 backFromFileBtn.addEventListener('click', () => {
     fileUploadSection.style.display = 'none';
     modeSelectionScreen.style.display = 'flex';
-    // Limpar arquivo selecionado
-    if (selectedFile) {
-        removeFileBtn.click();
-    }
+    // Resetar completamente o estado de upload
+    resetFileUploadState();
+    // Limpar formulário se estiver preenchido
+    clearForm();
 });
 
 // Voltar da tela de formulário para seleção
 backFromFormBtn.addEventListener('click', () => {
+    // Limpar formulário ao voltar
+    clearForm();
     formWrapper.style.display = 'none';
     modeSelectionScreen.style.display = 'flex';
 });
 
 // Abrir seletor de arquivo
-selectFileBtn.addEventListener('click', () => {
-    fileInput.click();
+selectFileBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // Limpar valor do input para garantir que o evento change seja disparado
+    if (fileInput) {
+        fileInput.value = '';
+        fileInput.click();
+    }
 });
 
 uploadArea.addEventListener('click', (e) => {
-    if (e.target === uploadArea || e.target.closest('.upload-area')) {
-        fileInput.click();
+    // Só abrir seletor se clicar diretamente na área de upload, não em elementos filhos
+    if (e.target === uploadArea || (e.target.closest('.upload-area') && e.target === uploadArea)) {
+        e.stopPropagation();
+        // Limpar valor do input para garantir que o evento change seja disparado
+        if (fileInput) {
+            fileInput.value = '';
+            fileInput.click();
+        }
     }
 });
 
@@ -549,10 +669,7 @@ function handleFileSelect(file) {
 
 // Remover arquivo selecionado
 removeFileBtn.addEventListener('click', () => {
-    selectedFile = null;
-    fileInput.value = '';
-    uploadArea.style.display = 'block';
-    fileInfo.style.display = 'none';
+    resetFileUploadState();
 });
 
 // Extrair dados do arquivo
@@ -580,6 +697,11 @@ extractBtn.addEventListener('click', async () => {
             setTimeout(() => {
                 fileUploadSection.style.display = 'none';
                 formWrapper.style.display = 'block';
+                // Garantir que o textarea tenha altura correta após preencher dados
+                const descricaoItem = document.getElementById('descricaoItem');
+                if (descricaoItem) {
+                    autoResizeTextarea(descricaoItem);
+                }
             }, 2000);
         } else {
             showError(result.message || 'Erro ao extrair dados do arquivo');
@@ -642,7 +764,12 @@ function fillFormWithExtractedData(data) {
     }
     
     if (data.descricaoItem) {
-        document.getElementById('descricaoItem').value = data.descricaoItem;
+        const descricaoItem = document.getElementById('descricaoItem');
+        if (descricaoItem) {
+            descricaoItem.value = data.descricaoItem;
+            // Ajustar altura após preencher
+            autoResizeTextarea(descricaoItem);
+        }
     }
     
     if (data.status) {

@@ -112,6 +112,9 @@ build-completo.bat
 - Filtros avançados por data, tipo e status
 - Geração de Termo de Apreensão
 - Etiquetas de apreensão para impressão
+- Organização automática de exportações em subpastas:
+  - Ocorrências: `C:\SECRIMPO\Exportacao\Ocorrencias\`
+  - TCOs: `C:\SECRIMPO\Exportacao\Tco\`
 
 ### Sistema de Atualizações
 - Verificação automática uma vez por dia
@@ -127,6 +130,15 @@ build-completo.bat
 - Sistema de prioridades (Baixa, Média, Alta, Urgente)
 - Notificação automática com @everyone no Discord
 - Cores dinâmicas no embed baseadas na prioridade
+- Modais com formulários não fecham ao clicar fora (proteção contra perda de dados)
+
+### Melhorias de Interface e UX
+- Limpeza automática do formulário ao navegar entre telas
+- Campo de descrição com auto-resize automático
+- Dropdown do menu do usuário padronizado em todas as telas
+- Verificação de atualizações disponível em todas as telas
+- Upload de arquivos com estado resetado corretamente
+- Indicador visual de filtros ativos: botão de filtro muda para verde quando há filtros aplicados (Ocorrências e TCOs)
 
 ## Documentação
 

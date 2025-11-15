@@ -180,6 +180,30 @@ body {
     color: #c33;
 }
 
+/* Botão Verificar Atualizações - cor verde */
+#checkUpdatesBtn {
+    color: #28a745;
+}
+
+#checkUpdatesBtn:hover {
+    background: #f8f9fa;
+    color: #218838;
+}
+
+#checkUpdatesBtn .dropdown-icon {
+    color: #28a745;
+}
+
+#checkUpdatesBtn:hover .dropdown-icon {
+    color: #218838;
+}
+
+.dropdown-item .dropdown-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
 .dropdown-item .logout-icon {
     width: 22px;
     height: 22px;
@@ -341,8 +365,9 @@ body {
 }
 
 .form-group textarea {
-    resize: vertical;
+    resize: none;
     min-height: 80px;
+    overflow-y: hidden;
 }
 
 .form-group select {

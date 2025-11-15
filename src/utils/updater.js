@@ -2,6 +2,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
+const { spawn } = require('child_process');
 
 // Configuração do repositório GitHub
 const GITHUB_REPO = {
@@ -136,11 +137,13 @@ function getLatestRelease() {
 
 /**
  * Verifica se há atualização disponível
+ * @param {string} currentVersion - Versão atual da aplicação
+ * @param {boolean} force - Se true, ignora a verificação de tempo e força a checagem
  */
-async function checkForUpdate(currentVersion) {
+async function checkForUpdate(currentVersion, force = false) {
   try {
-    // Verificar se deve fazer a verificação
-    if (!shouldCheckForUpdate()) {
+    // Verificar se deve fazer a verificação (ignorar se force = true)
+    if (!force && !shouldCheckForUpdate()) {
       console.log('Verificação de atualização já foi feita nas últimas 24 horas.');
       return null;
     }
@@ -159,6 +162,9 @@ async function checkForUpdate(currentVersion) {
     
     // Comparar versões
     if (compareVersions(latestVersion, currentVersionClean) > 0) {
+      // Identificar o arquivo de instalação correto
+      const installerAsset = findInstallerAsset(release.assets || []);
+      
       // Há atualização disponível
       return {
         available: true,
@@ -166,6 +172,8 @@ async function checkForUpdate(currentVersion) {
         latestVersion: latestVersion,
         releaseNotes: release.body || 'Sem notas de versão.',
         downloadUrl: release.html_url,
+        installerUrl: installerAsset ? installerAsset.browser_download_url : null,
+        installerName: installerAsset ? installerAsset.name : null,
         assets: release.assets || []
       };
     } else {
@@ -185,8 +193,190 @@ async function checkForUpdate(currentVersion) {
   }
 }
 
+/**
+ * Encontra o arquivo de instalação correto nos assets
+ * Prioriza: .exe que não seja portable
+ */
+function findInstallerAsset(assets) {
+  if (!assets || assets.length === 0) {
+    return null;
+  }
+  
+  // Priorizar instalador NSIS (não portable)
+  const nsisInstaller = assets.find(asset => 
+    asset.name.endsWith('.exe') && 
+    !asset.name.toLowerCase().includes('portable')
+  );
+  
+  if (nsisInstaller) {
+    return nsisInstaller;
+  }
+  
+  // Se não encontrar NSIS, procurar qualquer .exe
+  const anyExe = assets.find(asset => asset.name.endsWith('.exe'));
+  
+  return anyExe || null;
+}
+
+/**
+ * Baixa o arquivo de instalação
+ * @param {string} url - URL do arquivo para download
+ * @param {string} filePath - Caminho onde salvar o arquivo
+ * @param {Function} onProgress - Callback de progresso (percent, downloaded, total)
+ */
+function downloadFile(url, filePath, onProgress) {
+  return new Promise((resolve, reject) => {
+    const urlModule = require('url');
+    const parsedUrl = urlModule.parse(url);
+    const file = fs.createWriteStream(filePath);
+    let downloadedBytes = 0;
+    let totalBytes = 0;
+    
+    const options = {
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.path,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'SECRIMPO-PMDF-Updater/1.0',
+        'Accept': '*/*'
+      }
+    };
+    
+    const req = https.request(options, (res) => {
+      // Obter tamanho total do arquivo
+      totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+      
+      if (res.statusCode !== 200) {
+        file.close();
+        fs.unlinkSync(filePath);
+        reject(new Error(`Erro ao baixar arquivo: ${res.statusCode}`));
+        return;
+      }
+      
+      res.on('data', (chunk) => {
+        downloadedBytes += chunk.length;
+        file.write(chunk);
+        
+        if (onProgress && totalBytes > 0) {
+          const percent = Math.round((downloadedBytes / totalBytes) * 100);
+          onProgress(percent, downloadedBytes, totalBytes);
+        }
+      });
+      
+      res.on('end', () => {
+        file.end();
+        resolve(filePath);
+      });
+    });
+    
+    req.on('error', (error) => {
+      file.close();
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      reject(error);
+    });
+    
+    req.setTimeout(300000, () => { // 5 minutos de timeout
+      req.destroy();
+      file.close();
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      reject(new Error('Timeout ao baixar arquivo'));
+    });
+    
+    req.end();
+  });
+}
+
+/**
+ * Instala o arquivo baixado
+ * @param {string} installerPath - Caminho do instalador
+ */
+function installUpdate(installerPath) {
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(installerPath)) {
+      reject(new Error('Arquivo de instalação não encontrado'));
+      return;
+    }
+    
+    try {
+      // Executar o instalador
+      // /S = modo silencioso, /D= = diretório de instalação (opcional)
+      const installer = spawn(installerPath, ['/S'], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      
+      installer.unref(); // Permitir que o processo pai termine
+      
+      // Aguardar um pouco para garantir que o instalador iniciou
+      setTimeout(() => {
+        resolve();
+      }, 1000);
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Baixa e instala a atualização
+ * @param {string} installerUrl - URL do instalador
+ * @param {string} installerName - Nome do arquivo instalador
+ * @param {Function} onProgress - Callback de progresso
+ */
+async function downloadAndInstall(installerUrl, installerName, onProgress) {
+  if (!installerUrl || !installerName) {
+    throw new Error('URL ou nome do instalador não fornecido');
+  }
+  
+  // Criar diretório temporário
+  const tempDir = path.join(app.getPath('temp'), 'secrimpo-update');
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+  
+  const installerPath = path.join(tempDir, installerName);
+  
+  try {
+    // Baixar arquivo
+    if (onProgress) {
+      onProgress(0, 0, 0, 'Iniciando download...');
+    }
+    
+    await downloadFile(installerUrl, installerPath, (percent, downloaded, total) => {
+      if (onProgress) {
+        onProgress(percent, downloaded, total, `Baixando: ${percent}%`);
+      }
+    });
+    
+    if (onProgress) {
+      onProgress(100, 0, 0, 'Download concluído. Iniciando instalação...');
+    }
+    
+    // Instalar
+    await installUpdate(installerPath);
+    
+    return { success: true, installerPath };
+  } catch (error) {
+    // Limpar arquivo em caso de erro
+    if (fs.existsSync(installerPath)) {
+      try {
+        fs.unlinkSync(installerPath);
+      } catch (e) {
+        console.error('Erro ao remover arquivo temporário:', e);
+      }
+    }
+    throw error;
+  }
+}
+
 module.exports = {
   checkForUpdate,
-  compareVersions
+  compareVersions,
+  downloadAndInstall,
+  findInstallerAsset
 };
 

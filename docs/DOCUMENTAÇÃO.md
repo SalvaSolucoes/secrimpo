@@ -548,6 +548,32 @@ keyauth.fetchOnline()           # Usuários online
 4. **IDs únicos** gerados automaticamente
 5. **Validação de duplicatas** por RAP no TCO
 
+### Estrutura de Pastas Locais
+
+O sistema cria automaticamente a seguinte estrutura de pastas em `C:\SECRIMPO\`:
+
+```
+C:\SECRIMPO\
+├── Ocorrencias\              # Backups JSON das ocorrências
+│   └── [NumeroGenesis][dd.mm.yyyy].json
+├── Exportacao\
+│   ├── Ocorrencias\          # Exportações Excel de ocorrências
+│   │   └── [EXPORTACAO][dd.mm.yyyy].xlsx
+│   └── Tco\                  # Exportações Excel de TCOs
+│       └── [EXPORTACAO_TCO][dd.mm.yyyy].xlsx
+└── Termos\                   # PDFs de Termos de Apreensão
+    └── [NumeroGenesis][dd.mm.yyyy].pdf
+```
+
+#### Descrição das Pastas
+
+- **Ocorrencias/**: Armazena backups locais em formato JSON de todas as ocorrências registradas
+- **Exportacao/Ocorrencias/**: Contém arquivos Excel exportados de ocorrências (com ou sem filtros)
+- **Exportacao/Tco/**: Contém arquivos Excel exportados de TCOs (com ou sem filtros)
+- **Termos/**: Armazena PDFs gerados dos Termos de Apreensão
+
+**Nota**: Todas as pastas são criadas automaticamente na inicialização da aplicação.
+
 ---
 
 ## Interface do Usuário
@@ -561,6 +587,7 @@ keyauth.fetchOnline()           # Usuários online
 - **Status**: Dropdown preenchido dinamicamente com status únicos
 - **Persistência**: Filtros mantidos ao reabrir o modal
 - **Combinação**: Filtros funcionam em conjunto (AND)
+- **Indicador Visual**: Botão de filtro muda para cor verde quando há filtros ativos
 
 #### Filtros de TCOs
 - **RAP (Gênesis)**: Campo de texto para busca por RAP
@@ -568,6 +595,16 @@ keyauth.fetchOnline()           # Usuários online
 - **Item**: Campo de texto para busca por item
 - **Persistência**: Filtros mantidos ao reabrir o modal
 - **Combinação**: Filtros funcionam em conjunto (AND)
+- **Indicador Visual**: Botão de filtro muda para cor verde quando há filtros ativos
+
+#### Indicador Visual de Filtros
+- **Estado Padrão**: Botão cinza quando não há filtros aplicados
+- **Estado Ativo**: Botão verde quando há filtros aplicados
+- **Atualização Automática**: O estado visual é atualizado automaticamente ao:
+  - Aplicar filtros
+  - Limpar filtros
+  - Carregar dados
+  - Ativar a aba correspondente
 
 ### Sistema de Suporte
 
@@ -957,6 +994,6 @@ O sistema **SECRIMPO PMDF** é propriedade intelectual exclusiva da Salva Soluç
 
 ---
 
-**Última atualização**: 2025  
-**Versão do sistema**: 0.3.0  
+**Última atualização**: 15/01/2025  
+**Versão do sistema**: 0.3.1  
 **Desenvolvido por**: Salva Soluções Ltda

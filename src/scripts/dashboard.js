@@ -1090,6 +1090,23 @@ if (btnClearFilters) {
     });
 }
 
+// Função para verificar se há filtros ativos em ocorrências
+function hasActiveOccurrenceFilters() {
+    return !!(activeFilters.numeroGenesis || activeFilters.dataInicial || activeFilters.dataFinal || 
+              activeFilters.unidade || activeFilters.status);
+}
+
+// Função para atualizar estado visual do botão de filtro de ocorrências
+function updateOccurrenceFilterButtonState() {
+    if (filterBtn) {
+        if (hasActiveOccurrenceFilters()) {
+            filterBtn.classList.add('active');
+        } else {
+            filterBtn.classList.remove('active');
+        }
+    }
+}
+
 function applyOccurrenceFilters() {
     const filterNumeroGenesis = document.getElementById('filterNumeroGenesis');
     const filterDataInicial = document.getElementById('filterDataInicial');
@@ -1152,6 +1169,9 @@ function applyOccurrenceFilters() {
         return true;
     });
     
+    // Atualizar estado visual do botão
+    updateOccurrenceFilterButtonState();
+    
     renderTable();
 }
 
@@ -1177,6 +1197,10 @@ function clearOccurrenceFilters() {
     if (filterStatus) filterStatus.value = '';
     
     filteredOccurrences = [...allOccurrences];
+    
+    // Atualizar estado visual do botão
+    updateOccurrenceFilterButtonState();
+    
     renderTable();
 }
 
@@ -1187,6 +1211,8 @@ function applyOccurrenceFiltersOnLoad() {
         applyOccurrenceFilters();
     } else {
         filteredOccurrences = [...allOccurrences];
+        // Atualizar estado visual do botão (sem filtros ativos)
+        updateOccurrenceFilterButtonState();
         renderTable();
     }
 }
@@ -1223,6 +1249,8 @@ function setActiveTab(tab) {
     } else if (tab === 'ocorrencias') {
         tabOcorrencias.classList.add('active');
         sectionOcorrencias.style.display = 'block';
+        // Atualizar estado do botão de filtro quando a aba for ativada
+        updateOccurrenceFilterButtonState();
     } else if (tab === 'tco') {
         tabTCO.classList.add('active');
         sectionTCO.style.display = 'block';
@@ -1282,25 +1310,103 @@ if (btnUpdateLater) {
     });
 }
 
+// Elementos de progresso
+const updateProgressContainer = document.getElementById('updateProgressContainer');
+const updateProgressBar = document.getElementById('updateProgressBar');
+const updateProgressText = document.getElementById('updateProgressText');
+
 if (btnDownloadUpdate) {
     btnDownloadUpdate.addEventListener('click', async () => {
-        if (currentUpdateInfo && currentUpdateInfo.downloadUrl) {
-            try {
-                // Abrir link de download no navegador padrão
-                const result = await ipcRenderer.invoke('open-external-url', currentUpdateInfo.downloadUrl);
-                if (result.success) {
-                    if (updateModal) updateModal.classList.remove('active');
-                    customAlert.info('O link de download foi aberto no seu navegador. Após baixar, instale a nova versão para atualizar o aplicativo.');
-                } else {
-                    customAlert.error('Erro ao abrir link de download: ' + (result.error || 'Erro desconhecido'));
+        if (!currentUpdateInfo) {
+            customAlert.error('Informações de atualização não disponíveis.');
+            return;
+        }
+
+        // Verificar se tem instalador disponível
+        if (!currentUpdateInfo.installerUrl || !currentUpdateInfo.installerName) {
+            // Fallback: abrir página de releases
+            if (currentUpdateInfo.downloadUrl) {
+                try {
+                    const result = await ipcRenderer.invoke('open-external-url', currentUpdateInfo.downloadUrl);
+                    if (result.success) {
+                        if (updateModal) updateModal.classList.remove('active');
+                        customAlert.info('O link de download foi aberto no seu navegador. Após baixar, instale a nova versão para atualizar o aplicativo.');
+                    } else {
+                        customAlert.error('Erro ao abrir link de download: ' + (result.error || 'Erro desconhecido'));
+                    }
+                } catch (error) {
+                    console.error('Erro ao abrir link de download:', error);
+                    customAlert.error('Erro ao abrir link de download.');
                 }
-            } catch (error) {
-                console.error('Erro ao abrir link de download:', error);
-                customAlert.error('Erro ao abrir link de download.');
+            } else {
+                customAlert.error('Arquivo de instalação não disponível. Por favor, baixe manualmente.');
             }
+            return;
+        }
+
+        // Desabilitar botões durante download
+        btnDownloadUpdate.disabled = true;
+        btnUpdateLater.disabled = true;
+        btnDownloadUpdate.textContent = 'Baixando...';
+
+        // Mostrar progresso
+        if (updateProgressContainer) {
+            updateProgressContainer.style.display = 'block';
+        }
+        if (updateProgressBar) {
+            updateProgressBar.style.width = '0%';
+        }
+        if (updateProgressText) {
+            updateProgressText.textContent = 'Iniciando download...';
+        }
+
+        try {
+            // Baixar e instalar automaticamente
+            const result = await ipcRenderer.invoke('download-and-install-update', currentUpdateInfo);
+            
+            if (result.success) {
+                if (updateProgressText) {
+                    updateProgressText.textContent = 'Instalação iniciada. A aplicação será fechada em instantes...';
+                }
+                // A aplicação será fechada automaticamente pelo main process
+            } else {
+                // Reabilitar botões em caso de erro
+                btnDownloadUpdate.disabled = false;
+                btnUpdateLater.disabled = false;
+                btnDownloadUpdate.textContent = 'Baixar Atualização';
+                
+                if (updateProgressContainer) {
+                    updateProgressContainer.style.display = 'none';
+                }
+                
+                customAlert.error('Erro ao baixar/instalar atualização: ' + (result.error || 'Erro desconhecido'));
+            }
+        } catch (error) {
+            console.error('Erro ao baixar/instalar atualização:', error);
+            
+            // Reabilitar botões em caso de erro
+            btnDownloadUpdate.disabled = false;
+            btnUpdateLater.disabled = false;
+            btnDownloadUpdate.textContent = 'Baixar Atualização';
+            
+            if (updateProgressContainer) {
+                updateProgressContainer.style.display = 'none';
+            }
+            
+            customAlert.error('Erro ao baixar/instalar atualização: ' + error.message);
         }
     });
 }
+
+// Listener para receber progresso do download
+ipcRenderer.on('update-download-progress', (event, progress) => {
+    if (updateProgressBar && progress.percent !== undefined) {
+        updateProgressBar.style.width = progress.percent + '%';
+    }
+    if (updateProgressText && progress.message) {
+        updateProgressText.textContent = progress.message;
+    }
+});
 
 // Listener para receber notificação de atualização do main process
 ipcRenderer.on('update-available', (event, updateInfo) => {
@@ -1320,6 +1426,28 @@ function showUpdateModal(updateInfo) {
     }
     if (releaseNotesContent) {
         releaseNotesContent.textContent = updateInfo.releaseNotes || 'Sem notas de versão disponíveis.';
+    }
+    
+    // Esconder progresso ao mostrar modal
+    if (updateProgressContainer) {
+        updateProgressContainer.style.display = 'none';
+    }
+    if (updateProgressBar) {
+        updateProgressBar.style.width = '0%';
+    }
+    
+    // Reabilitar botões
+    if (btnDownloadUpdate) {
+        btnDownloadUpdate.disabled = false;
+        const svgIcon = btnDownloadUpdate.querySelector('svg');
+        if (svgIcon) {
+            btnDownloadUpdate.innerHTML = svgIcon.outerHTML + ' Baixar e Instalar';
+        } else {
+            btnDownloadUpdate.textContent = 'Baixar e Instalar';
+        }
+    }
+    if (btnUpdateLater) {
+        btnUpdateLater.disabled = false;
     }
     
     if (updateModal) {
@@ -1376,15 +1504,8 @@ if (suporteCancelBtn) {
     });
 }
 
-// Fechar modal ao clicar fora
-if (suporteModal) {
-    suporteModal.addEventListener('click', (e) => {
-        if (e.target === suporteModal) {
-            suporteModal.classList.remove('active');
-            suporteForm.reset();
-        }
-    });
-}
+// Não fechar modal ao clicar fora (modal contém formulário)
+// O modal só fecha através dos botões de fechar/cancelar
 
 // Enviar formulário de suporte
 if (suporteSubmitBtn) {
@@ -1527,12 +1648,8 @@ btnNovaOcorrenciaEmpty.addEventListener('click', () => {
     ipcRenderer.send('load-panel');
 });
 
-// Close modal on outside click
-viewModal.addEventListener('click', (e) => {
-    if (e.target === viewModal) {
-        closeModal();
-    }
-});
+// Não fechar modal ao clicar fora (modal contém formulário para edição)
+// O modal só fecha através dos botões de fechar/cancelar
 
 deleteModal.addEventListener('click', (e) => {
     if (e.target === deleteModal) {
@@ -1602,11 +1719,16 @@ async function loadTCOs() {
             tcoData = [];
         }
         
+        // Atualizar estado visual do botão após carregar
+        updateTCOFilterButtonState();
+        
         renderTCOTable();
         
     } catch (error) {
         console.error('Erro ao carregar TCOs:', error);
         tcoData = [];
+        // Atualizar estado visual do botão mesmo em caso de erro
+        updateTCOFilterButtonState();
         renderTCOTable();
     }
 }
@@ -1616,6 +1738,8 @@ function loadTCOsWithFilters() {
     loadTCOs().then(() => {
         // Aplicar filtros ativos após carregar
         renderTCOTable();
+        // Atualizar estado visual do botão
+        updateTCOFilterButtonState();
     });
 }
 
@@ -1754,6 +1878,22 @@ if (btnClearFiltersTCO) {
     });
 }
 
+// Função para verificar se há filtros ativos em TCOs
+function hasActiveTCOFilters() {
+    return !!(activeFiltersTCO.rap || activeFiltersTCO.ilicito || activeFiltersTCO.item);
+}
+
+// Função para atualizar estado visual do botão de filtro de TCOs
+function updateTCOFilterButtonState() {
+    if (filterBtnTCO) {
+        if (hasActiveTCOFilters()) {
+            filterBtnTCO.classList.add('active');
+        } else {
+            filterBtnTCO.classList.remove('active');
+        }
+    }
+}
+
 function applyTCOFilters() {
     const filterRAP = document.getElementById('filterRAP');
     const filterIlicito = document.getElementById('filterIlicito');
@@ -1765,6 +1905,9 @@ function applyTCOFilters() {
         ilicito: filterIlicito ? filterIlicito.value : '',
         item: filterItem ? filterItem.value.trim() : ''
     };
+    
+    // Atualizar estado visual do botão
+    updateTCOFilterButtonState();
     
     // Aplicar filtros na renderização
     renderTCOTable();
@@ -1784,6 +1927,9 @@ function clearTCOFilters() {
     if (filterRAP) filterRAP.value = '';
     if (filterIlicito) filterIlicito.value = '';
     if (filterItem) filterItem.value = '';
+    
+    // Atualizar estado visual do botão
+    updateTCOFilterButtonState();
     
     renderTCOTable();
 }
@@ -2115,6 +2261,11 @@ const originalSetActiveTab = setActiveTab;
 setActiveTab = function(tab) {
     originalSetActiveTab(tab);
     if (tab === 'tco') {
-        loadTCOs();
+        if (tcoData.length === 0) {
+            loadTCOs();
+        } else {
+            // Atualizar estado do botão mesmo se os dados já estiverem carregados
+            updateTCOFilterButtonState();
+        }
     }
 };
