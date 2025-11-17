@@ -219,16 +219,28 @@ function findInstallerAsset(assets) {
 }
 
 /**
- * Baixa o arquivo de instalação
+ * Baixa o arquivo de instalação com suporte a redirecionamentos
  * @param {string} url - URL do arquivo para download
  * @param {string} filePath - Caminho onde salvar o arquivo
  * @param {Function} onProgress - Callback de progresso (percent, downloaded, total)
+ * @param {number} maxRedirects - Número máximo de redirecionamentos (padrão: 5)
+ * @param {number} redirectCount - Contador de redirecionamentos (uso interno)
  */
-function downloadFile(url, filePath, onProgress) {
+function downloadFile(url, filePath, onProgress, maxRedirects = 5, redirectCount = 0) {
   return new Promise((resolve, reject) => {
+    // Verificar limite de redirecionamentos
+    if (redirectCount > maxRedirects) {
+      reject(new Error('Muitos redirecionamentos. Possível loop de redirecionamento.'));
+      return;
+    }
+    
     const urlModule = require('url');
     const parsedUrl = urlModule.parse(url);
-    const file = fs.createWriteStream(filePath);
+    const isHttps = parsedUrl.protocol === 'https:';
+    const httpModule = isHttps ? https : require('http');
+    
+    // Se for redirecionamento, usar um stream temporário para ler a resposta
+    let file;
     let downloadedBytes = 0;
     let totalBytes = 0;
     
@@ -242,16 +254,52 @@ function downloadFile(url, filePath, onProgress) {
       }
     };
     
-    const req = https.request(options, (res) => {
-      // Obter tamanho total do arquivo
-      totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+    // Adicionar porta se especificada
+    if (parsedUrl.port) {
+      options.port = parsedUrl.port;
+    }
+    
+    const req = httpModule.request(options, (res) => {
+      // Verificar se é um redirecionamento
+      if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+        const location = res.headers.location;
+        if (!location) {
+          reject(new Error(`Redirecionamento sem header Location: ${res.statusCode}`));
+          return;
+        }
+        
+        // Resolver URL relativa ou absoluta
+        const redirectUrl = urlModule.resolve(url, location);
+        
+        // Fechar requisição atual
+        res.destroy();
+        req.destroy();
+        
+        // Seguir redirecionamento recursivamente
+        console.log(`Seguindo redirecionamento ${res.statusCode} para: ${redirectUrl}`);
+        downloadFile(redirectUrl, filePath, onProgress, maxRedirects, redirectCount + 1)
+          .then(resolve)
+          .catch(reject);
+        return;
+      }
       
+      // Se não for 200, rejeitar
       if (res.statusCode !== 200) {
-        file.close();
-        fs.unlinkSync(filePath);
+        if (file) {
+          file.close();
+        }
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
         reject(new Error(`Erro ao baixar arquivo: ${res.statusCode}`));
         return;
       }
+      
+      // Criar arquivo apenas quando tiver certeza que não é redirecionamento
+      file = fs.createWriteStream(filePath);
+      
+      // Obter tamanho total do arquivo
+      totalBytes = parseInt(res.headers['content-length'] || '0', 10);
       
       res.on('data', (chunk) => {
         downloadedBytes += chunk.length;
@@ -264,13 +312,17 @@ function downloadFile(url, filePath, onProgress) {
       });
       
       res.on('end', () => {
-        file.end();
+        if (file) {
+          file.end();
+        }
         resolve(filePath);
       });
     });
     
     req.on('error', (error) => {
-      file.close();
+      if (file) {
+        file.close();
+      }
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
@@ -279,7 +331,9 @@ function downloadFile(url, filePath, onProgress) {
     
     req.setTimeout(300000, () => { // 5 minutos de timeout
       req.destroy();
-      file.close();
+      if (file) {
+        file.close();
+      }
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
