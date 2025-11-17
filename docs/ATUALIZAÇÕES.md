@@ -7,6 +7,15 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.3.2] - 15/01/2025
+
+**Atualização - Credenciais KeyAuth**
+
+### Alterado
+- Credenciais KeyAuth atualizadas para nova aplicação
+
+---
+
 ## [0.3.1] - 15/11/2025
 
 **Atualização - Correções e Melhorias de UX**
