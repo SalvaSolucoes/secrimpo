@@ -48,7 +48,7 @@ Esta é a primeira versão estável e final do sistema SecrimpoPMDF, pronta para
 
 ---
 
-## [0.3.3] - 15/01/2025
+## [0.3.3] - 26/11/2025
 
 **Atualização - Funcionalidade de Salvar PNG**
 
