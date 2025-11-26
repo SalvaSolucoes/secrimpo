@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, dialog } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 const XLSX = require('xlsx');
@@ -13,7 +13,8 @@ const FOLDERS = {
   exportacoes: path.join(BASE_DIR, 'Exportacao'),
   exportacoesOcorrencias: path.join(BASE_DIR, 'Exportacao', 'Ocorrencias'),
   exportacoesTco: path.join(BASE_DIR, 'Exportacao', 'Tco'),
-  termos: path.join(BASE_DIR, 'Termos')
+  termos: path.join(BASE_DIR, 'Termos'),
+  png: path.join(BASE_DIR, 'PNG')
 };
 
 // Criar pastas se não existirem
@@ -1261,42 +1262,59 @@ ipcMain.handle('print-termo-apreensao', async (event, occurrenceData) => {
     // Remover menu
     previewWindow.setMenu(null);
 
-    // Carregar PDF diretamente
-    console.log('Carregando PDF na janela:', pdfPath);
-    await previewWindow.loadFile(pdfPath);
+    // Carregar wrapper HTML que exibe o PDF
+    const wrapperPath = path.join(__dirname, 'views/pdf_viewer_wrapper.html');
+    await previewWindow.loadFile(wrapperPath);
 
-    // Adicionar botões de ação via JavaScript injetado
-    await previewWindow.webContents.executeJavaScript(`
-      // Criar toolbar com botões
-      const toolbar = document.createElement('div');
-      toolbar.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #071d49 0%, #0a2d6e 100%); color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 10000; font-family: system-ui, -apple-system, sans-serif;';
-      
-      const title = document.createElement('div');
-      title.textContent = 'Termo de Apreensão';
-      title.style.cssText = 'font-size: 16px; font-weight: normal;';
-      
-      const actions = document.createElement('div');
-      actions.style.cssText = 'display: flex; gap: 10px;';
-      
-      const btnPrint = document.createElement('button');
-      btnPrint.textContent = 'Imprimir';
-      btnPrint.style.cssText = 'padding: 10px 20px; background: linear-gradient(135deg, #279b4d 0%, #1f8040 100%); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: normal; cursor: pointer; font-family: inherit;';
-      btnPrint.onclick = () => window.print();
-      
-      const btnClose = document.createElement('button');
-      btnClose.textContent = 'Fechar';
-      btnClose.style.cssText = 'padding: 10px 20px; background: #e0e0e0; color: #333; border: none; border-radius: 8px; font-size: 14px; font-weight: normal; cursor: pointer; font-family: inherit;';
-      btnClose.onclick = () => window.close();
-      
-      actions.appendChild(btnPrint);
-      actions.appendChild(btnClose);
-      toolbar.appendChild(title);
-      toolbar.appendChild(actions);
-      document.body.insertBefore(toolbar, document.body.firstChild);
-      
-      // Ajustar margem do corpo para não sobrepor a toolbar
-      document.body.style.marginTop = '60px';
-    `);
+    // Aguardar um pouco para garantir que a página carregou
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Serializar dados antes de enviar para evitar erro de clonagem
+    let serializedOccurrenceData;
+    try {
+      serializedOccurrenceData = JSON.parse(JSON.stringify(occurrenceData));
+    } catch (serializeError) {
+      console.error('Erro ao serializar dados da ocorrência:', serializeError);
+      // Criar objeto básico serializável como fallback
+      serializedOccurrenceData = {
+        ocorrencia: {
+          numeroGenesis: occurrenceData?.ocorrencia?.numeroGenesis || '',
+          unidade: occurrenceData?.ocorrencia?.unidade || '',
+          dataApreensao: occurrenceData?.ocorrencia?.dataApreensao || '',
+          leiInfrigida: occurrenceData?.ocorrencia?.leiInfrigida || '',
+          artigo: occurrenceData?.ocorrencia?.artigo || '',
+          status: occurrenceData?.ocorrencia?.status || '',
+          numeroPje: occurrenceData?.ocorrencia?.numeroPje || ''
+        },
+        itemApreendido: {
+          especie: occurrenceData?.itemApreendido?.especie || '',
+          item: occurrenceData?.itemApreendido?.item || '',
+          quantidade: occurrenceData?.itemApreendido?.quantidade || '',
+          descricao: occurrenceData?.itemApreendido?.descricao || ''
+        },
+        proprietario: {
+          nome: occurrenceData?.proprietario?.nome || '',
+          tipoDocumento: occurrenceData?.proprietario?.tipoDocumento || '',
+          numeroDocumento: occurrenceData?.proprietario?.numeroDocumento || ''
+        },
+        policial: {
+          nome: occurrenceData?.policial?.nome || '',
+          matricula: occurrenceData?.policial?.matricula || '',
+          graduacao: occurrenceData?.policial?.graduacao || '',
+          unidade: occurrenceData?.policial?.unidade || ''
+        },
+        metadata: {
+          registradoPor: occurrenceData?.metadata?.registradoPor || '',
+          dataRegistro: occurrenceData?.metadata?.dataRegistro || new Date().toISOString()
+        }
+      };
+    }
+
+    // Enviar dados da ocorrência e caminho do PDF para o wrapper
+    previewWindow.webContents.send('pdf-data', {
+      pdfPath: pdfPath,
+      occurrenceData: serializedOccurrenceData
+    });
 
     previewWindow.show();
 
@@ -1304,6 +1322,247 @@ ipcMain.handle('print-termo-apreensao', async (event, occurrenceData) => {
   } catch (error) {
     console.error('Erro ao gerar termo de apreensão:', error);
     return { success: false, message: error.message };
+  }
+});
+
+// IPC Handler para salvar termo de apreensão como PNG
+ipcMain.handle('save-termo-as-png', async (event, occurrenceData) => {
+  try {
+    // Criar pasta PNG se não existir
+    if (!fs.existsSync(FOLDERS.png)) {
+      fs.mkdirSync(FOLDERS.png, { recursive: true });
+    }
+
+    // Extrair dados necessários
+    const numeroGenesis = occurrenceData?.ocorrencia?.numeroGenesis || '';
+    
+    // Formatar nome padrão do arquivo
+    const dateStr = formatDateForFilename();
+    const defaultFilename = `[${numeroGenesis}][${dateStr}].png`;
+    const defaultPath = path.join(FOLDERS.png, defaultFilename);
+
+    // Abrir diálogo de salvamento
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Salvar como PNG',
+      defaultPath: defaultPath,
+      filters: [
+        { name: 'Imagens PNG', extensions: ['png'] }
+      ],
+      properties: ['showOverwriteConfirmation']
+    });
+
+    if (canceled || !filePath) {
+      return { success: false, message: 'Operação cancelada pelo usuário' };
+    }
+
+    // Criar janela temporária para capturar o HTML como PNG
+    // Tamanho A4 em pixels (96 DPI): 210mm x 297mm = 794px x 1123px
+    const a4Width = 794;
+    const a4Height = 1123;
+    
+    const captureWindow = new BrowserWindow({
+      width: a4Width,
+      height: a4Height,
+      show: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      }
+    });
+
+    // Carregar o template do termo de apreensão
+    const templatePath = path.join(__dirname, 'templates/termo_apreensao.html');
+    await captureWindow.loadFile(templatePath);
+
+    // Aguardar o DOM estar pronto e o listener IPC estar registrado
+    try {
+      await captureWindow.webContents.executeJavaScript(`
+        new Promise((resolve) => {
+          if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            // Verificar se o listener IPC está registrado
+            const checkListener = () => {
+              if (window.ipcListenerReady) {
+                resolve();
+              } else {
+                setTimeout(checkListener, 100);
+              }
+            };
+            setTimeout(checkListener, 200);
+          } else {
+            const onReady = () => {
+              const checkListener = () => {
+                if (window.ipcListenerReady) {
+                  resolve();
+                } else {
+                  setTimeout(checkListener, 100);
+                }
+              };
+              setTimeout(checkListener, 200);
+            };
+            document.addEventListener('DOMContentLoaded', onReady);
+            window.addEventListener('load', onReady);
+          }
+        });
+      `);
+    } catch (error) {
+      console.warn('Aviso ao aguardar DOM:', error);
+      // Fallback: aguardar um tempo fixo
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+
+    // Serializar dados antes de enviar
+    let serializedData;
+    try {
+      serializedData = JSON.parse(JSON.stringify(occurrenceData));
+    } catch (serializeError) {
+      console.error('Erro ao serializar dados para captura:', serializeError);
+      // Usar dados básicos como fallback
+      serializedData = {
+        ocorrencia: {
+          numeroGenesis: occurrenceData?.ocorrencia?.numeroGenesis || '',
+          unidade: occurrenceData?.ocorrencia?.unidade || '',
+          dataApreensao: occurrenceData?.ocorrencia?.dataApreensao || '',
+          leiInfrigida: occurrenceData?.ocorrencia?.leiInfrigida || '',
+          artigo: occurrenceData?.ocorrencia?.artigo || '',
+          status: occurrenceData?.ocorrencia?.status || '',
+          numeroPje: occurrenceData?.ocorrencia?.numeroPje || ''
+        },
+        itemApreendido: {
+          especie: occurrenceData?.itemApreendido?.especie || '',
+          item: occurrenceData?.itemApreendido?.item || '',
+          quantidade: occurrenceData?.itemApreendido?.quantidade || '',
+          descricao: occurrenceData?.itemApreendido?.descricao || ''
+        },
+        proprietario: {
+          nome: occurrenceData?.proprietario?.nome || '',
+          tipoDocumento: occurrenceData?.proprietario?.tipoDocumento || '',
+          numeroDocumento: occurrenceData?.proprietario?.numeroDocumento || ''
+        },
+        policial: {
+          nome: occurrenceData?.policial?.nome || '',
+          matricula: occurrenceData?.policial?.matricula || '',
+          graduacao: occurrenceData?.policial?.graduacao || '',
+          unidade: occurrenceData?.policial?.unidade || ''
+        },
+        metadata: {
+          registradoPor: occurrenceData?.metadata?.registradoPor || '',
+          dataRegistro: occurrenceData?.metadata?.dataRegistro || new Date().toISOString()
+        }
+      };
+    }
+
+    // Enviar dados via IPC em vez de injetar via executeJavaScript
+    console.log('Enviando dados via IPC. Tamanho do JSON:', JSON.stringify(serializedData).length);
+    
+    // Verificar se o listener está pronto
+    let listenerReady = false;
+    try {
+      listenerReady = await captureWindow.webContents.executeJavaScript('window.ipcListenerReady === true');
+    } catch (error) {
+      console.warn('Não foi possível verificar se o listener está pronto:', error);
+    }
+    
+    if (!listenerReady) {
+      console.log('Listener não está pronto, aguardando...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // Aguardar confirmação de que os dados foram preenchidos
+    const populatePromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        console.warn('Timeout aguardando confirmação via IPC, tentando fallback...');
+        // Fallback: tentar injetar diretamente
+        captureWindow.webContents.executeJavaScript(`
+          try {
+            window.occurrenceData = ${JSON.stringify(serializedData)};
+            if (typeof populateForm === 'function') {
+              populateForm(window.occurrenceData);
+            }
+          } catch (e) {
+            console.error('Erro no fallback:', e);
+          }
+        `).then(() => {
+          console.log('Fallback executado com sucesso');
+          resolve();
+        }).catch((fallbackError) => {
+          console.error('Erro no fallback:', fallbackError);
+          reject(new Error('Timeout e fallback falharam'));
+        });
+      }, 3000);
+      
+      captureWindow.webContents.once('termo-data-populated', (event, success) => {
+        clearTimeout(timeout);
+        if (success) {
+          console.log('Dados preenchidos com sucesso via IPC');
+          resolve();
+        } else {
+          reject(new Error('Erro ao preencher formulário no renderer'));
+        }
+      });
+    });
+    
+    // Enviar dados para o renderer via IPC
+    captureWindow.webContents.send('populate-termo-data', serializedData);
+    
+    // Aguardar confirmação
+    await populatePromise;
+
+    // Aguardar para garantir que os dados foram preenchidos e renderizados
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Ocultar a página 2 (etiqueta) e ajustar para capturar apenas a página 1 (termo)
+    await captureWindow.webContents.executeJavaScript(`
+      (function() {
+        try {
+          // Ocultar a página 2 (etiqueta)
+          const labelPage = document.querySelector('.label-page');
+          if (labelPage) {
+            labelPage.style.display = 'none';
+          }
+          
+          // Ajustar estilos para garantir que apenas a página 1 seja visível
+          const style = document.createElement('style');
+          style.textContent = 'body { overflow: hidden !important; height: 100vh !important; } .container { page-break-after: auto !important; height: 100% !important; } .label-page { display: none !important; }';
+          document.head.appendChild(style);
+        } catch (error) {
+          console.error('Erro ao ajustar estilos:', error);
+        }
+      })();
+    `);
+
+    // Aguardar um pouco para o CSS ser aplicado
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Ajustar o tamanho da janela para A4 (já definido acima)
+    captureWindow.setSize(a4Width, a4Height);
+    
+    // Aguardar um pouco para a janela redimensionar e o conteúdo renderizar
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Capturar a página completa como imagem
+    const image = await captureWindow.webContents.capturePage();
+    
+    // Converter NativeImage para PNG buffer
+    const pngBuffer = image.toPNG();
+    
+    // Fechar janela temporária
+    captureWindow.close();
+    
+    // Salvar arquivo
+    fs.writeFileSync(filePath, pngBuffer);
+    console.log('PNG salvo em:', filePath);
+
+    return { 
+      success: true, 
+      message: 'PNG salvo com sucesso!',
+      filePath: filePath
+    };
+  } catch (error) {
+    console.error('Erro ao salvar PNG:', error);
+    return { 
+      success: false, 
+      message: 'Erro ao salvar PNG: ' + error.message 
+    };
   }
 });
 

@@ -7,6 +7,25 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [0.3.3] - 15/01/2025
+
+**Atualização - Funcionalidade de Salvar PNG**
+
+### Adicionado
+- Botão "Salvar como PNG" no termo de apreensão
+- Funcionalidade para salvar termo de apreensão como imagem PNG
+- Salvamento em `C:/SECRIMPO/PNG/` com nome padrão `[Nº Genesis][Data].png`
+- Diálogo personalizado para editar caminho e nome do arquivo
+- Alertas personalizados seguindo padrão visual do projeto
+
+### Melhorado
+- Ajustes visuais nos campos do termo de apreensão
+- Campo "Espécie" agora exibe como texto (sem aparência de dropdown)
+- Campo "Item" expande automaticamente para mostrar todo o conteúdo
+- Todos os dados do termo ficam visíveis e ajustados
+
+---
+
 ## [0.3.2] - 15/01/2025
 
 **Atualização - Credenciais KeyAuth**

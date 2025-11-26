@@ -169,16 +169,62 @@
             border: 1px solid #d0d0d0;
             padding: 10px 12px;
             background: #fafafa;
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            height: auto;
+        }
+
+        /* Garantir que campos de texto possam expandir */
+        table td input[type="text"] {
+            min-height: 30px;
+            height: auto;
+            line-height: 1.4;
         }
 
         table td input,
-        table td textarea {
+        table td textarea,
+        table td select {
             width: 100%;
             border: none;
             padding: 5px;
             font-size: 10pt;
             background: transparent;
             resize: none;
+            color: #000 !important;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            word-break: break-word;
+            min-height: 20px;
+            box-sizing: border-box;
+        }
+
+        table td input[readonly],
+        table td textarea[readonly],
+        table td select[disabled] {
+            overflow: visible;
+            text-overflow: clip;
+            white-space: normal;
+            word-break: break-word;
+            height: auto;
+            min-height: 20px;
+            color: #000 !important;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        /* Remover aparência de dropdown do select quando desabilitado */
+        table td select[disabled] {
+            background: transparent !important;
+            cursor: default;
+        }
+
+        table td select[disabled]::-ms-expand {
+            display: none;
         }
 
         .content-wrapper {
@@ -469,8 +515,14 @@
             }
 
             table td input,
-            table td textarea {
+            table td textarea,
+            table td select {
                 border: none !important;
+                color: #000 !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+                white-space: normal !important;
+                overflow: visible !important;
             }
 
             .section-title {
@@ -551,15 +603,9 @@
             <tbody>
                 <tr>
                     <td>
-                        <select id="especie" disabled>
-                            <option value="">Selecione...</option>
-                            <option value="SUBSTÂNCIA">SUBSTÂNCIA</option>
-                            <option value="OBJETO">OBJETO</option>
-                            <option value="SIMULACRO">SIMULACRO</option>
-                            <option value="ARMA BRANCA">ARMA BRANCA</option>
-                        </select>
+                        <input type="text" id="especie" readonly>
                     </td>
-                    <td><input type="text" id="item" readonly></td>
+                    <td><textarea id="item" rows="2" readonly style="min-height: 40px;"></textarea></td>
                     <td><input type="text" id="quantidade" readonly></td>
                     <td><textarea id="descricaoItem" rows="3" readonly></textarea></td>
                 </tr>
@@ -709,7 +755,43 @@
     </div>
 
     <script>
-        // This script will be populated by the main process
+        const { ipcRenderer } = require('electron');
+        
+        // Marcar que o listener está pronto
+        window.ipcListenerReady = false;
+        
+        // Listener para receber dados via IPC
+        ipcRenderer.on('populate-termo-data', (event, data) => {
+            try {
+                console.log('Dados recebidos via IPC');
+                window.occurrenceData = data;
+                if (typeof populateForm === 'function') {
+                    populateForm(window.occurrenceData);
+                    // Enviar confirmação de sucesso
+                    ipcRenderer.send('termo-data-populated', true);
+                } else {
+                    console.error('Função populateForm não encontrada');
+                    ipcRenderer.send('termo-data-populated', false);
+                }
+            } catch (error) {
+                console.error('Erro ao preencher formulário:', error);
+                ipcRenderer.send('termo-data-populated', false);
+            }
+        });
+        
+        // Marcar listener como pronto quando o DOM estiver carregado
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            window.ipcListenerReady = true;
+        } else {
+            window.addEventListener('DOMContentLoaded', () => {
+                window.ipcListenerReady = true;
+            });
+            window.addEventListener('load', () => {
+                window.ipcListenerReady = true;
+            });
+        }
+        
+        // Fallback: verificar se dados já estão disponíveis
         window.addEventListener('DOMContentLoaded', () => {
             if (window.occurrenceData) {
                 populateForm(window.occurrenceData);
@@ -725,8 +807,19 @@
             document.getElementById('artigo').value = data.ocorrencia.artigo || '';
             document.getElementById('status').value = data.ocorrencia.status || '';
             
-            document.getElementById('especie').value = data.itemApreendido.especie || '';
-            document.getElementById('item').value = data.itemApreendido.item || '';
+            // Espécie agora é um input, não select
+            const especieInput = document.getElementById('especie');
+            if (especieInput) {
+                especieInput.value = data.itemApreendido.especie || '';
+            }
+            // Item agora é um textarea
+            const itemTextarea = document.getElementById('item');
+            if (itemTextarea) {
+                itemTextarea.value = data.itemApreendido.item || '';
+                // Ajustar altura automaticamente
+                itemTextarea.style.height = 'auto';
+                itemTextarea.style.height = (itemTextarea.scrollHeight) + 'px';
+            }
             document.getElementById('quantidade').value = data.itemApreendido.quantidade || '';
             document.getElementById('descricaoItem').value = data.itemApreendido.descricao || '';
             
