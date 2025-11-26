@@ -7,7 +7,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
-## [0.3.3] - 15/01/2025
+## [0.3.3] - 26/11/2025
 
 **Atualização - Funcionalidade de Salvar PNG**
 
@@ -26,7 +26,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
-## [0.3.2] - 15/01/2025
+## [0.3.2] - 15/11/2025
 
 **Atualização - Credenciais KeyAuth**
 
