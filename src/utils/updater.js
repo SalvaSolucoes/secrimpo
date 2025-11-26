@@ -314,8 +314,16 @@ function downloadFile(url, filePath, onProgress, maxRedirects = 5, redirectCount
       res.on('end', () => {
         if (file) {
           file.end();
+          // Aguardar o arquivo ser completamente escrito no disco
+          file.on('close', () => {
+            // Dar um pequeno delay para garantir que o arquivo está liberado
+            setTimeout(() => {
+              resolve(filePath);
+            }, 500);
+          });
+        } else {
+          resolve(filePath);
         }
-        resolve(filePath);
       });
     });
     
@@ -355,23 +363,94 @@ function installUpdate(installerPath) {
       return;
     }
     
-    try {
-      // Executar o instalador
-      // /S = modo silencioso, /D= = diretório de instalação (opcional)
-      const installer = spawn(installerPath, ['/S'], {
-        detached: true,
-        stdio: 'ignore'
+    // Verificar se o arquivo está acessível (não está sendo usado)
+    const checkFileAccess = () => {
+      return new Promise((resolveCheck) => {
+        fs.access(installerPath, fs.constants.F_OK | fs.constants.R_OK, (err) => {
+          if (err) {
+            resolveCheck(false);
+          } else {
+            // Tentar abrir o arquivo para leitura para garantir que não está bloqueado
+            try {
+              const fd = fs.openSync(installerPath, 'r');
+              fs.closeSync(fd);
+              resolveCheck(true);
+            } catch {
+              resolveCheck(false);
+            }
+          }
+        });
       });
+    };
+    
+    // Aguardar o arquivo estar acessível antes de executar
+    const waitForFile = async () => {
+      for (let i = 0; i < 10; i++) {
+        const accessible = await checkFileAccess();
+        if (accessible) {
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
       
-      installer.unref(); // Permitir que o processo pai termine
-      
-      // Aguardar um pouco para garantir que o instalador iniciou
-      setTimeout(() => {
-        resolve();
-      }, 1000);
-    } catch (error) {
-      reject(error);
-    }
+      try {
+        // Aguardar um pouco mais para garantir que o arquivo está completamente liberado
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Executar o instalador usando shell no Windows para evitar problemas de bloqueio
+        // /S = modo silencioso
+        // Usar cmd.exe para executar o instalador (mais confiável no Windows)
+        const isWindows = process.platform === 'win32';
+        
+        let installer;
+        if (isWindows) {
+          // No Windows, usar cmd.exe para executar o instalador
+          // Envolver o caminho em aspas caso tenha espaços
+          const quotedPath = installerPath.includes(' ') ? `"${installerPath}"` : installerPath;
+          installer = spawn('cmd.exe', ['/c', quotedPath, '/S'], {
+            detached: true,
+            stdio: 'ignore',
+            windowsVerbatimArguments: false
+          });
+        } else {
+          // Em outros sistemas, executar diretamente
+          installer = spawn(installerPath, ['/S'], {
+            detached: true,
+            stdio: 'ignore'
+          });
+        }
+        
+        installer.on('error', (error) => {
+          console.error('Erro ao executar instalador:', error);
+          reject(new Error(`Erro ao executar instalador: ${error.message}`));
+        });
+        
+        // Aguardar um pouco para verificar se o processo iniciou
+        setTimeout(() => {
+          try {
+            // Verificar se o processo ainda está rodando ou se já terminou
+            if (installer && !installer.killed) {
+              console.log('Instalador iniciado com sucesso');
+              installer.unref(); // Permitir que o processo pai termine
+              resolve();
+            } else {
+              // Se o processo já terminou, pode ter sido executado com sucesso
+              console.log('Instalador executado');
+              resolve();
+            }
+          } catch (error) {
+            console.error('Erro ao verificar processo:', error);
+            // Mesmo com erro, tentar continuar
+            resolve();
+          }
+        }, 1000);
+        
+      } catch (error) {
+        reject(new Error(`Erro ao executar instalador: ${error.message}`));
+      }
+    };
+    
+    waitForFile();
   });
 }
 
@@ -407,7 +486,34 @@ async function downloadAndInstall(installerUrl, installerName, onProgress) {
     });
     
     if (onProgress) {
-      onProgress(100, 0, 0, 'Download concluído. Iniciando instalação...');
+      onProgress(100, 0, 0, 'Download concluído. Preparando instalação...');
+    }
+    
+    // Aguardar um pouco para garantir que o arquivo está completamente escrito e liberado
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Verificar se o arquivo existe e está acessível
+    let retries = 0;
+    const maxRetries = 5;
+    while (retries < maxRetries) {
+      try {
+        // Tentar acessar o arquivo
+        fs.accessSync(installerPath, fs.constants.F_OK | fs.constants.R_OK);
+        // Tentar abrir para garantir que não está bloqueado
+        const fd = fs.openSync(installerPath, 'r');
+        fs.closeSync(fd);
+        break; // Arquivo está acessível
+      } catch (error) {
+        retries++;
+        if (retries >= maxRetries) {
+          throw new Error('Arquivo de instalação não está acessível. Pode estar sendo usado por outro processo.');
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    if (onProgress) {
+      onProgress(100, 0, 0, 'Iniciando instalação...');
     }
     
     // Instalar

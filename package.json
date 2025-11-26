@@ -1,6 +1,6 @@
 {
   "name": "secrimpo-pmdf",
-  "version": "0.3.3",
+  "version": "1.0.0",
   "description": "Painel para gestão de ocorrências",
   "main": "src/main.js",
   "scripts": {

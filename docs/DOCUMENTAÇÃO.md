@@ -994,6 +994,6 @@ O sistema **SECRIMPO PMDF** é propriedade intelectual exclusiva da Salva Soluç
 
 ---
 
-**Última atualização**: 15/01/2025  
-**Versão do sistema**: 0.3.3  
+**Última atualização**: 26/11/2025  
+**Versão do sistema**: 1.0.0  
 **Desenvolvido por**: Salva Soluções Ltda

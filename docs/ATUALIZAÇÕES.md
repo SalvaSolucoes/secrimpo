@@ -7,6 +7,47 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [1.0.0] - 26/11/2025
+
+**Primeira Versão Final para Produção**
+
+Esta é a primeira versão estável e final do sistema SecrimpoPMDF, pronta para uso em produção.
+
+### Características Principais
+- Sistema completo de gestão de ocorrências policiais
+- Integração com KeyAuth para autenticação segura
+- Geração de termos de apreensão em PDF
+- Exportação de dados para Excel
+- Sistema de atualizações automáticas
+- Interface moderna e intuitiva
+- Salvamento de termos como PNG
+- Gestão completa de ocorrências e TCOs
+
+### Estabilidade
+- Todas as funcionalidades principais testadas e validadas
+- Sistema de atualizações robusto e confiável
+- Tratamento de erros aprimorado
+- Performance otimizada
+
+---
+
+## [0.3.4] - 26/11/2025
+
+**Correção - Erro ao Instalar Atualizações**
+
+### Corrigido
+- Erro "spawn EBUSY" ao baixar e instalar atualizações
+- Melhorias na verificação de acesso ao arquivo antes da execução
+- Execução do instalador via cmd.exe no Windows para maior compatibilidade
+- Aguardar arquivo estar completamente escrito antes de executar
+
+### Melhorado
+- Sistema de retry para verificação de acesso ao arquivo
+- Tratamento de erros mais robusto no processo de instalação
+- Delays adicionais para garantir que arquivos estão liberados
+
+---
+
 ## [0.3.3] - 15/01/2025
 
 **Atualização - Funcionalidade de Salvar PNG**
@@ -26,7 +67,7 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
-## [0.3.2] - 15/01/2025
+## [0.3.2] - 15/11/2025
 
 **Atualização - Credenciais KeyAuth**
 
