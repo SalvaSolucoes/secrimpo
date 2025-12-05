@@ -7,6 +7,61 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ---
 
+## [1.0.1] - 05/12/2025
+
+**Atualização - Suporte a Múltiplos Proprietários e Correções de Segurança**
+
+### Adicionado
+- **Sistema de múltiplos proprietários:**
+  - Botão "+ Adicionar Proprietário" no formulário de nova ocorrência
+  - Suporte para adicionar quantos proprietários forem necessários
+  - Numeração automática (Proprietário 1, Proprietário 2, etc.)
+  - Botão "Remover" para proprietários adicionais (primeiro é obrigatório)
+  - Campos dinâmicos para cada proprietário (Nome, Tipo Documento, Nº Documento)
+  - Máscaras automáticas de CPF/RG aplicadas individualmente
+  - Conversão automática para maiúsculas em todos os campos
+
+- **Normalização de dados de proprietários:**
+  - Separação automática de valores concatenados do Google Sheets
+  - Suporte para dados antigos (formato único) e novos (formato múltiplo)
+  - Normalização aplicada em: Termo de Apreensão, Visualizar e Editar ocorrências
+
+- **Exportação aprimorada:**
+  - Exportação Excel cria uma linha para cada proprietário
+  - Google Sheets recebe dados concatenados (Nome1, Nome2... | CPF, RG... | 123, 456...)
+  - Mantém compatibilidade com formato antigo
+
+### Alterado
+- **Visualização e Edição de Ocorrências:**
+  - Modal de edição/visualização agora exibe múltiplos proprietários separados
+  - Estilo visual igual ao formulário de nova ocorrência
+  - Cards organizados com separação visual clara entre proprietários
+  - Espaçamento adequado entre título e campos (1.5rem)
+
+- **Termo de Apreensão:**
+  - Exibe múltiplos proprietários em campos separados
+  - Página 1: Cada proprietário em seu próprio card
+  - Página 2 (Label): Formatação com "Proprietário 1: NOME | Proprietário 2: NOME..."
+
+- **Atualização de dependências:**
+  - Electron atualizado de 27.0.0 para 39.2.5 (correção de vulnerabilidades)
+  - xlsx atualizado para 0.20.2 via CDN (correção de vulnerabilidades de segurança)
+
+### Corrigido
+- Erro ao registrar ocorrência (função toUpperCase não estava no escopo correto)
+- Validação de formulário com múltiplos proprietários
+- Compatibilidade com dados antigos (um único proprietário)
+- Separação de dados concatenados do Google Sheets em campos individuais
+- Organização visual dos proprietários no modal de edição/visualização
+
+### Técnico
+- Função `normalizeProprietariosData()` para separar valores concatenados
+- Funções auxiliares para concatenar dados para Google Sheets
+- Estrutura de dados suporta array de proprietários mantendo compatibilidade
+- Estilos CSS específicos para múltiplos proprietários no modal
+
+---
+
 ## [1.0.0] - 26/11/2025
 
 **Primeira Versão Final para Produção**
@@ -48,7 +103,7 @@ Esta é a primeira versão estável e final do sistema SecrimpoPMDF, pronta para
 
 ---
 
-## [0.3.3] - 26/11/2025
+## [0.3.3] - 15/01/2025
 
 **Atualização - Funcionalidade de Salvar PNG**
 

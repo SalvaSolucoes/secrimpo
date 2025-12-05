@@ -413,9 +413,72 @@ window.editOccurrence = function(index) {
     showModal(true);
 };
 
+// Função para normalizar dados de proprietários (separar valores concatenados)
+function normalizeProprietariosData(data) {
+    let normalized = JSON.parse(JSON.stringify(data));
+    
+    // Se proprietarios não existe ou não é array válido, tentar criar a partir de proprietario
+    if (!normalized.proprietarios || !Array.isArray(normalized.proprietarios) || normalized.proprietarios.length === 0) {
+        // Se proprietario existe e tem valores concatenados (contém vírgula), separar
+        if (normalized.proprietario && normalized.proprietario.nome) {
+            const nome = normalized.proprietario.nome;
+            const tipoDoc = normalized.proprietario.tipoDocumento || '';
+            const numDoc = normalized.proprietario.numeroDocumento || '';
+            
+            // Verificar se os valores estão concatenados (contêm vírgula)
+            if (nome.includes(',') || tipoDoc.includes(',') || numDoc.includes(',')) {
+                // Separar valores concatenados
+                const nomes = nome.split(',').map(n => n.trim()).filter(n => n);
+                const tipos = tipoDoc.split(',').map(t => t.trim()).filter(t => t);
+                const numeros = numDoc.split(',').map(n => n.trim()).filter(n => n);
+                
+                // Criar array de proprietários a partir dos valores separados
+                const maxLength = Math.max(nomes.length, tipos.length, numeros.length);
+                normalized.proprietarios = [];
+                
+                for (let i = 0; i < maxLength; i++) {
+                    normalized.proprietarios.push({
+                        nome: nomes[i] || '',
+                        tipoDocumento: tipos[i] || '',
+                        numeroDocumento: numeros[i] || ''
+                    });
+                }
+            } else {
+                // Valores não concatenados, criar array com um único proprietário
+                normalized.proprietarios = [{
+                    nome: nome,
+                    tipoDocumento: tipoDoc,
+                    numeroDocumento: numDoc
+                }];
+            }
+        } else {
+            normalized.proprietarios = [];
+        }
+    }
+    
+    // Garantir que sempre tenha pelo menos um proprietário vazio
+    if (!normalized.proprietarios || normalized.proprietarios.length === 0) {
+        normalized.proprietarios = [{ nome: '', tipoDocumento: '', numeroDocumento: '' }];
+    }
+    
+    return normalized;
+}
+
 // Show modal
 function showModal(editable) {
     if (!currentOccurrence) return;
+    
+    // Normalizar dados de proprietários antes de exibir
+    const normalizedOccurrence = normalizeProprietariosData(currentOccurrence);
+    
+    // Resetar contador de proprietários
+    const proprietarios = normalizedOccurrence.proprietarios && Array.isArray(normalizedOccurrence.proprietarios) && normalizedOccurrence.proprietarios.length > 0
+        ? normalizedOccurrence.proprietarios
+        : [{ nome: '', tipoDocumento: '', numeroDocumento: '' }];
+    editProprietarioCount = proprietarios.length;
+    
+    // Usar dados normalizados para exibir
+    const dataToShow = normalizedOccurrence;
 
     const modalTitle = document.getElementById('modalTitle');
     modalTitle.textContent = editable ? 'Editar Ocorrência' : 'Detalhes da Ocorrência';
@@ -426,32 +489,32 @@ function showModal(editable) {
             <div class="modal-form-grid">
                 <div class="modal-form-group">
                     <label>Nº Genesis</label>
-                    <input type="text" id="edit-numeroGenesis" value="${currentOccurrence.ocorrencia.numeroGenesis}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-numeroGenesis" value="${dataToShow.ocorrencia.numeroGenesis}" ${!editable ? 'disabled' : ''}>
                 </div>
                 <div class="modal-form-group">
                     <label>Unidade</label>
                     ${editable ? `
                     <select id="edit-unidade" ${!editable ? 'disabled' : ''}>
                         <option value="">Selecione...</option>
-                        <option value="8º BPM" ${currentOccurrence.ocorrencia.unidade === '8º BPM' ? 'selected' : ''}>8º BPM</option>
-                        <option value="10º BPM" ${currentOccurrence.ocorrencia.unidade === '10º BPM' ? 'selected' : ''}>10º BPM</option>
-                        <option value="16º BPM" ${currentOccurrence.ocorrencia.unidade === '16º BPM' ? 'selected' : ''}>16º BPM</option>
+                        <option value="8º BPM" ${dataToShow.ocorrencia.unidade === '8º BPM' ? 'selected' : ''}>8º BPM</option>
+                        <option value="10º BPM" ${dataToShow.ocorrencia.unidade === '10º BPM' ? 'selected' : ''}>10º BPM</option>
+                        <option value="16º BPM" ${dataToShow.ocorrencia.unidade === '16º BPM' ? 'selected' : ''}>16º BPM</option>
                     </select>
                     ` : `
-                    <input type="text" id="edit-unidade" value="${currentOccurrence.ocorrencia.unidade}" disabled>
+                    <input type="text" id="edit-unidade" value="${dataToShow.ocorrencia.unidade}" disabled>
                     `}
                 </div>
                 <div class="modal-form-group">
                     <label>Data da Apreensão</label>
-                    <input type="text" id="edit-dataApreensao" value="${formatDateBR(currentOccurrence.ocorrencia.dataApreensao)}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-dataApreensao" value="${formatDateBR(dataToShow.ocorrencia.dataApreensao)}" ${!editable ? 'disabled' : ''}>
                 </div>
                 <div class="modal-form-group">
                     <label>Lei Infringida</label>
-                    <input type="text" id="edit-leiInfrigida" value="${currentOccurrence.ocorrencia.leiInfrigida || ''}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-leiInfrigida" value="${dataToShow.ocorrencia.leiInfrigida || ''}" ${!editable ? 'disabled' : ''}>
                 </div>
                 <div class="modal-form-group">
                     <label>Artigo</label>
-                    <input type="text" id="edit-artigo" value="${currentOccurrence.ocorrencia.artigo || ''}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-artigo" value="${dataToShow.ocorrencia.artigo || ''}" ${!editable ? 'disabled' : ''}>
                 </div>
                 <div class="modal-form-group">
                     <label>Status</label>
@@ -461,7 +524,7 @@ function showModal(editable) {
                 </div>
                 <div class="modal-form-group">
                     <label>Nº PJE</label>
-                    <input type="text" id="edit-numeroPje" value="${currentOccurrence.ocorrencia.numeroPje || ''}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-numeroPje" value="${dataToShow.ocorrencia.numeroPje || ''}" ${!editable ? 'disabled' : ''}>
                 </div>
             </div>
         </div>
@@ -474,53 +537,80 @@ function showModal(editable) {
                     ${editable ? `
                     <select id="edit-especie" ${!editable ? 'disabled' : ''}>
                         <option value="">Selecione...</option>
-                        <option value="SUBSTÂNCIA" ${currentOccurrence.itemApreendido.especie === 'SUBSTÂNCIA' ? 'selected' : ''}>SUBSTÂNCIA</option>
-                        <option value="OBJETO" ${currentOccurrence.itemApreendido.especie === 'OBJETO' ? 'selected' : ''}>OBJETO</option>
-                        <option value="SIMULACRO" ${currentOccurrence.itemApreendido.especie === 'SIMULACRO' ? 'selected' : ''}>SIMULACRO</option>
-                        <option value="ARMA BRANCA" ${currentOccurrence.itemApreendido.especie === 'ARMA BRANCA' ? 'selected' : ''}>ARMA BRANCA</option>
+                        <option value="SUBSTÂNCIA" ${dataToShow.itemApreendido.especie === 'SUBSTÂNCIA' ? 'selected' : ''}>SUBSTÂNCIA</option>
+                        <option value="OBJETO" ${dataToShow.itemApreendido.especie === 'OBJETO' ? 'selected' : ''}>OBJETO</option>
+                        <option value="SIMULACRO" ${dataToShow.itemApreendido.especie === 'SIMULACRO' ? 'selected' : ''}>SIMULACRO</option>
+                        <option value="ARMA BRANCA" ${dataToShow.itemApreendido.especie === 'ARMA BRANCA' ? 'selected' : ''}>ARMA BRANCA</option>
                     </select>
                     ` : `
-                    <input type="text" id="edit-especie" value="${currentOccurrence.itemApreendido.especie || ''}" disabled>
+                    <input type="text" id="edit-especie" value="${dataToShow.itemApreendido.especie || ''}" disabled>
                     `}
                 </div>
                 <div class="modal-form-group">
                     <label>Item</label>
-                    <input type="text" id="edit-item" value="${currentOccurrence.itemApreendido.item}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-item" value="${dataToShow.itemApreendido.item}" ${!editable ? 'disabled' : ''}>
                 </div>
                 <div class="modal-form-group">
                     <label>Quantidade</label>
-                    <input type="text" id="edit-quantidade" value="${currentOccurrence.itemApreendido.quantidade}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-quantidade" value="${dataToShow.itemApreendido.quantidade}" ${!editable ? 'disabled' : ''}>
                 </div>
                 <div class="modal-form-group full-width">
                     <label>Descrição</label>
-                    <textarea id="edit-descricao" rows="3" ${!editable ? 'disabled' : ''}>${currentOccurrence.itemApreendido.descricao || ''}</textarea>
+                    <textarea id="edit-descricao" rows="3" ${!editable ? 'disabled' : ''}>${dataToShow.itemApreendido.descricao || ''}</textarea>
                 </div>
             </div>
         </div>
 
         <div class="modal-form-section">
-            <h3 class="modal-section-title">Dados do Proprietário</h3>
-            <div class="modal-form-grid">
-                <div class="modal-form-group">
-                    <label>Nome Completo</label>
-                    <input type="text" id="edit-nomeProprietario" value="${currentOccurrence.proprietario.nome}" ${!editable ? 'disabled' : ''}>
-                </div>
-                <div class="modal-form-group">
-                    <label>Tipo de Documento</label>
-                    ${editable ? `
-                    <select id="edit-tipoDocumento" ${!editable ? 'disabled' : ''}>
-                        <option value="">Selecione...</option>
-                        <option value="CPF" ${currentOccurrence.proprietario.tipoDocumento === 'CPF' ? 'selected' : ''}>CPF</option>
-                        <option value="RG" ${currentOccurrence.proprietario.tipoDocumento === 'RG' ? 'selected' : ''}>RG</option>
-                    </select>
-                    ` : `
-                    <input type="text" id="edit-tipoDocumento" value="${currentOccurrence.proprietario.tipoDocumento}" disabled>
-                    `}
-                </div>
-                <div class="modal-form-group">
-                    <label>Nº Documento</label>
-                    <input type="text" id="edit-numeroDocumento" value="${currentOccurrence.proprietario.numeroDocumento}" ${!editable ? 'disabled' : ''}>
-                </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 class="modal-section-title" style="margin: 0;">Dados do Proprietário</h3>
+                ${editable ? `
+                <button type="button" id="edit-addProprietarioBtn" class="btn-add-proprietario" style="padding: 0.5rem 1rem; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">
+                    + Adicionar Proprietário
+                </button>
+                ` : ''}
+            </div>
+            <div id="edit-proprietariosContainer">
+                ${(() => {
+                    const proprietarios = dataToShow.proprietarios && Array.isArray(dataToShow.proprietarios) && dataToShow.proprietarios.length > 0
+                        ? dataToShow.proprietarios
+                        : [{ nome: '', tipoDocumento: '', numeroDocumento: '' }];
+                    
+                    return proprietarios.map((prop, index) => `
+                        <div class="proprietario-item" data-edit-proprietario-index="${index}">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                                <h3 style="margin: 0; font-size: 1rem; color: #333;">Proprietário ${index + 1}</h3>
+                                ${editable && index > 0 ? `
+                                <button type="button" class="btn-remove-proprietario" onclick="removeEditProprietario(this)" style="padding: 0.4rem 0.8rem; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                                    Remover
+                                </button>
+                                ` : ''}
+                            </div>
+                            <div class="modal-form-grid">
+                                <div class="modal-form-group">
+                                    <label>Nome Completo</label>
+                                    <input type="text" class="edit-proprietario-nome" data-index="${index}" value="${prop.nome || ''}" ${!editable ? 'disabled' : ''}>
+                                </div>
+                                <div class="modal-form-group">
+                                    <label>Tipo de Documento</label>
+                                    ${editable ? `
+                                    <select class="edit-proprietario-tipo-documento" data-index="${index}" ${!editable ? 'disabled' : ''}>
+                                        <option value="">Selecione...</option>
+                                        <option value="CPF" ${prop.tipoDocumento === 'CPF' ? 'selected' : ''}>CPF</option>
+                                        <option value="RG" ${prop.tipoDocumento === 'RG' ? 'selected' : ''}>RG</option>
+                                    </select>
+                                    ` : `
+                                    <input type="text" class="edit-proprietario-tipo-documento" value="${prop.tipoDocumento || ''}" disabled>
+                                    `}
+                                </div>
+                                <div class="modal-form-group">
+                                    <label>Nº Documento</label>
+                                    <input type="text" class="edit-proprietario-numero-documento" data-index="${index}" value="${prop.numeroDocumento || ''}" ${!editable ? 'disabled' : ''}>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                })()}
             </div>
         </div>
 
@@ -529,39 +619,39 @@ function showModal(editable) {
             <div class="modal-form-grid">
                 <div class="modal-form-group">
                     <label>Nome Completo</label>
-                    <input type="text" id="edit-nomePolicial" value="${currentOccurrence.policial.nome}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-nomePolicial" value="${dataToShow.policial.nome}" ${!editable ? 'disabled' : ''}>
                 </div>
                 <div class="modal-form-group">
                     <label>Matrícula</label>
-                    <input type="text" id="edit-matricula" value="${currentOccurrence.policial.matricula}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-matricula" value="${dataToShow.policial.matricula}" ${!editable ? 'disabled' : ''}>
                 </div>
                 <div class="modal-form-group">
                     <label>Graduação</label>
                     ${editable ? `
                     <select id="edit-graduacao" ${!editable ? 'disabled' : ''}>
                         <option value="">Selecione...</option>
-                        <option value="Soldado de 2ª Classe" ${currentOccurrence.policial.graduacao === 'Soldado de 2ª Classe' ? 'selected' : ''}>Soldado 2ª Classe</option>
-                        <option value="Soldado de 1ª Classe" ${currentOccurrence.policial.graduacao === 'Soldado de 1ª Classe' ? 'selected' : ''}>Soldado 1ª Classe</option>
-                        <option value="Cabo" ${currentOccurrence.policial.graduacao === 'Cabo' ? 'selected' : ''}>Cabo</option>
-                        <option value="3º Sargento" ${currentOccurrence.policial.graduacao === '3º Sargento' ? 'selected' : ''}>3º Sargento</option>
-                        <option value="2º Sargento" ${currentOccurrence.policial.graduacao === '2º Sargento' ? 'selected' : ''}>2º Sargento</option>
-                        <option value="1º Sargento" ${currentOccurrence.policial.graduacao === '1º Sargento' ? 'selected' : ''}>1º Sargento</option>
-                        <option value="Subtenente" ${currentOccurrence.policial.graduacao === 'Subtenente' ? 'selected' : ''}>Subtenente</option>
-                        <option value="Aspirante-a-Oficial" ${currentOccurrence.policial.graduacao === 'Aspirante-a-Oficial' ? 'selected' : ''}>Aspirante-a-Oficial</option>
-                        <option value="Segundo-Tenente" ${currentOccurrence.policial.graduacao === 'Segundo-Tenente' ? 'selected' : ''}>Segundo-Tenente</option>
-                        <option value="Primeiro-Tenente" ${currentOccurrence.policial.graduacao === 'Primeiro-Tenente' ? 'selected' : ''}>Primeiro-Tenente</option>
-                        <option value="Capitão" ${currentOccurrence.policial.graduacao === 'Capitão' ? 'selected' : ''}>Capitão</option>
-                        <option value="Major" ${currentOccurrence.policial.graduacao === 'Major' ? 'selected' : ''}>Major</option>
-                        <option value="Tenente-Coronel" ${currentOccurrence.policial.graduacao === 'Tenente-Coronel' ? 'selected' : ''}>Tenente-Coronel</option>
-                        <option value="Coronel" ${currentOccurrence.policial.graduacao === 'Coronel' ? 'selected' : ''}>Coronel</option>
+                        <option value="Soldado de 2ª Classe" ${dataToShow.policial.graduacao === 'Soldado de 2ª Classe' ? 'selected' : ''}>Soldado 2ª Classe</option>
+                        <option value="Soldado de 1ª Classe" ${dataToShow.policial.graduacao === 'Soldado de 1ª Classe' ? 'selected' : ''}>Soldado 1ª Classe</option>
+                        <option value="Cabo" ${dataToShow.policial.graduacao === 'Cabo' ? 'selected' : ''}>Cabo</option>
+                        <option value="3º Sargento" ${dataToShow.policial.graduacao === '3º Sargento' ? 'selected' : ''}>3º Sargento</option>
+                        <option value="2º Sargento" ${dataToShow.policial.graduacao === '2º Sargento' ? 'selected' : ''}>2º Sargento</option>
+                        <option value="1º Sargento" ${dataToShow.policial.graduacao === '1º Sargento' ? 'selected' : ''}>1º Sargento</option>
+                        <option value="Subtenente" ${dataToShow.policial.graduacao === 'Subtenente' ? 'selected' : ''}>Subtenente</option>
+                        <option value="Aspirante-a-Oficial" ${dataToShow.policial.graduacao === 'Aspirante-a-Oficial' ? 'selected' : ''}>Aspirante-a-Oficial</option>
+                        <option value="Segundo-Tenente" ${dataToShow.policial.graduacao === 'Segundo-Tenente' ? 'selected' : ''}>Segundo-Tenente</option>
+                        <option value="Primeiro-Tenente" ${dataToShow.policial.graduacao === 'Primeiro-Tenente' ? 'selected' : ''}>Primeiro-Tenente</option>
+                        <option value="Capitão" ${dataToShow.policial.graduacao === 'Capitão' ? 'selected' : ''}>Capitão</option>
+                        <option value="Major" ${dataToShow.policial.graduacao === 'Major' ? 'selected' : ''}>Major</option>
+                        <option value="Tenente-Coronel" ${dataToShow.policial.graduacao === 'Tenente-Coronel' ? 'selected' : ''}>Tenente-Coronel</option>
+                        <option value="Coronel" ${dataToShow.policial.graduacao === 'Coronel' ? 'selected' : ''}>Coronel</option>
                     </select>
                     ` : `
-                    <input type="text" id="edit-graduacao" value="${currentOccurrence.policial.graduacao || ''}" disabled>
+                    <input type="text" id="edit-graduacao" value="${dataToShow.policial.graduacao || ''}" disabled>
                     `}
                 </div>
                 <div class="modal-form-group">
                     <label>Unidade</label>
-                    <input type="text" id="edit-unidadePolicial" value="${currentOccurrence.policial.unidade}" ${!editable ? 'disabled' : ''}>
+                    <input type="text" id="edit-unidadePolicial" value="${dataToShow.policial.unidade}" ${!editable ? 'disabled' : ''}>
                 </div>
             </div>
         </div>
@@ -571,11 +661,11 @@ function showModal(editable) {
             <div class="modal-form-grid">
                 <div class="modal-form-group">
                     <label>Registrado Por</label>
-                    <input type="text" value="${currentOccurrence.metadata.registradoPor}" disabled>
+                    <input type="text" value="${dataToShow.metadata.registradoPor}" disabled>
                 </div>
                 <div class="modal-form-group">
                     <label>Data do Registro</label>
-                    <input type="text" value="${formatDateTime(currentOccurrence.metadata.dataRegistro)}" disabled>
+                    <input type="text" value="${formatDateTime(dataToShow.metadata.dataRegistro)}" disabled>
                 </div>
             </div>
         </div>
@@ -607,7 +697,7 @@ function showModal(editable) {
             const updateStatusOptions = () => {
                 const especieSelecionada = especieSelect.value;
                 // Usar o valor atual do select ou o valor da ocorrência
-                const currentStatus = statusSelect.value || currentOccurrence.ocorrencia.status || '';
+                const currentStatus = statusSelect.value || dataToShow.ocorrencia.status || '';
                 
                 // Definir opções válidas para cada espécie
                 const statusOptionsSubstancia = ['SECRIMPO', 'INSTITUTO DE CRIMINALISTICA', 'DOP', 'DESTRUIÇÃO'];
@@ -737,6 +827,89 @@ function closeModal() {
     isEditMode = false;
 }
 
+// Funções para gerenciar múltiplos proprietários no modal de edição
+let editProprietarioCount = 1;
+
+function addEditProprietario() {
+    const container = document.getElementById('edit-proprietariosContainer');
+    if (!container) return;
+    
+    editProprietarioCount++;
+    const index = editProprietarioCount - 1;
+    
+    const proprietarioItem = document.createElement('div');
+    proprietarioItem.className = 'proprietario-item';
+    proprietarioItem.setAttribute('data-edit-proprietario-index', index);
+    
+    proprietarioItem.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1rem; color: #333;">Proprietário ${editProprietarioCount}</h3>
+            <button type="button" class="btn-remove-proprietario" onclick="removeEditProprietario(this)" style="padding: 0.4rem 0.8rem; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                Remover
+            </button>
+        </div>
+        <div class="modal-form-grid">
+            <div class="modal-form-group">
+                <label>Nome Completo</label>
+                <input type="text" class="edit-proprietario-nome" data-index="${index}">
+            </div>
+            <div class="modal-form-group">
+                <label>Tipo de Documento</label>
+                <select class="edit-proprietario-tipo-documento" data-index="${index}">
+                    <option value="">Selecione...</option>
+                    <option value="CPF">CPF</option>
+                    <option value="RG">RG</option>
+                </select>
+            </div>
+            <div class="modal-form-group">
+                <label>Nº Documento</label>
+                <input type="text" class="edit-proprietario-numero-documento" data-index="${index}">
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(proprietarioItem);
+    proprietarioItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+window.removeEditProprietario = function(button) {
+    const proprietarioItem = button.closest('.proprietario-item');
+    const index = parseInt(proprietarioItem.getAttribute('data-edit-proprietario-index'));
+    
+    // Não permitir remover o primeiro proprietário
+    if (index === 0) {
+        return;
+    }
+    
+    proprietarioItem.remove();
+    updateEditProprietarioNumbers();
+}
+
+function updateEditProprietarioNumbers() {
+    const proprietarioItems = document.querySelectorAll('#edit-proprietariosContainer .proprietario-item');
+    editProprietarioCount = proprietarioItems.length;
+    
+    proprietarioItems.forEach((item, index) => {
+        const title = item.querySelector('h3');
+        if (title) {
+            title.textContent = `Proprietário ${index + 1}`;
+        }
+        item.setAttribute('data-edit-proprietario-index', index);
+        
+        const inputs = item.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            input.setAttribute('data-index', index);
+        });
+    });
+}
+
+// Event listener para o botão de adicionar proprietário no modal
+document.addEventListener('click', function(e) {
+    if (e.target && e.target.id === 'edit-addProprietarioBtn') {
+        addEditProprietario();
+    }
+});
+
 // Save edit
 async function saveEdit() {
     if (!currentOccurrence) return;
@@ -780,11 +953,39 @@ async function saveEdit() {
             quantidade: toUpperCase(document.getElementById('edit-quantidade').value),
             descricao: toUpperCase(document.getElementById('edit-descricao').value || '')
         },
-        proprietario: {
-            nome: toUpperCase(document.getElementById('edit-nomeProprietario').value),
-            tipoDocumento: document.getElementById('edit-tipoDocumento').value,
-            numeroDocumento: toUpperCase(document.getElementById('edit-numeroDocumento').value)
-        },
+        proprietarios: (() => {
+            const proprietarios = [];
+            const proprietarioItems = document.querySelectorAll('#edit-proprietariosContainer .proprietario-item');
+            
+            proprietarioItems.forEach((item) => {
+                const nome = item.querySelector('.edit-proprietario-nome')?.value.trim() || '';
+                const tipoDocumento = item.querySelector('.edit-proprietario-tipo-documento')?.value || '';
+                const numeroDocumento = item.querySelector('.edit-proprietario-numero-documento')?.value.trim() || '';
+                
+                // Só adicionar se pelo menos o nome estiver preenchido
+                if (nome || tipoDocumento || numeroDocumento) {
+                    proprietarios.push({
+                        nome: toUpperCase(nome),
+                        tipoDocumento: tipoDocumento,
+                        numeroDocumento: toUpperCase(numeroDocumento)
+                    });
+                }
+            });
+            
+            return proprietarios;
+        })(),
+        // Mantém proprietario para compatibilidade (usa o primeiro)
+        proprietario: (() => {
+            const firstItem = document.querySelector('#edit-proprietariosContainer .proprietario-item');
+            if (firstItem) {
+                return {
+                    nome: toUpperCase(firstItem.querySelector('.edit-proprietario-nome')?.value.trim() || ''),
+                    tipoDocumento: firstItem.querySelector('.edit-proprietario-tipo-documento')?.value || '',
+                    numeroDocumento: toUpperCase(firstItem.querySelector('.edit-proprietario-numero-documento')?.value.trim() || '')
+                };
+            }
+            return { nome: '', tipoDocumento: '', numeroDocumento: '' };
+        })(),
         policial: {
             nome: toUpperCase(document.getElementById('edit-nomePolicial').value),
             matricula: toUpperCase(document.getElementById('edit-matricula').value),

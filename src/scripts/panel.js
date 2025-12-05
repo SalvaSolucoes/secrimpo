@@ -18,6 +18,11 @@ const loadingSubtext = document.getElementById('loadingSubtext');
 const tabDashboard = document.getElementById('tabDashboard');
 const tabNovaOcorrencia = document.getElementById('tabNovaOcorrencia');
 
+// Elementos de múltiplos proprietários
+const addProprietarioBtn = document.getElementById('addProprietarioBtn');
+const proprietariosContainer = document.getElementById('proprietariosContainer');
+let proprietarioCount = 1; // Começa com 1 porque já temos o primeiro
+
 // Função para auto-resize do textarea de descrição
 function autoResizeTextarea(textarea) {
     if (!textarea) return;
@@ -59,9 +64,186 @@ window.addEventListener('load', () => {
     }
 });
 
+// ==================== FUNCIONALIDADE DE MÚLTIPLOS PROPRIETÁRIOS ====================
+
+// Função auxiliar para converter strings para maiúsculas
+function toUpperCase(value) {
+    return typeof value === 'string' ? value.toUpperCase() : value;
+}
+
+// Função para coletar todos os proprietários do formulário
+function collectProprietarios() {
+    const proprietarios = [];
+    const proprietarioItems = document.querySelectorAll('.proprietario-item');
+    
+    proprietarioItems.forEach((item, index) => {
+        const nome = item.querySelector('.proprietario-nome').value.trim();
+        const tipoDocumento = item.querySelector('.proprietario-tipo-documento').value;
+        const numeroDocumento = item.querySelector('.proprietario-numero-documento').value.trim();
+        
+        // Só adicionar se pelo menos o nome estiver preenchido
+        if (nome || tipoDocumento || numeroDocumento) {
+            proprietarios.push({
+                nome: toUpperCase(nome),
+                tipoDocumento: tipoDocumento, // Select mantém valor original
+                numeroDocumento: toUpperCase(numeroDocumento)
+            });
+        }
+    });
+    
+    return proprietarios;
+}
+
+// Função para criar um novo campo de proprietário
+function addProprietario() {
+    proprietarioCount++;
+    const index = proprietarioCount - 1;
+    
+    const proprietarioItem = document.createElement('div');
+    proprietarioItem.className = 'proprietario-item';
+    proprietarioItem.setAttribute('data-proprietario-index', index);
+    
+    proprietarioItem.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h3 style="margin: 0; font-size: 1rem; color: #333;">Proprietário ${proprietarioCount}</h3>
+            <button type="button" class="btn-remove-proprietario" onclick="removeProprietario(this)">
+                Remover
+            </button>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Nome Completo</label>
+                <input type="text" class="proprietario-nome" data-index="${index}" required>
+            </div>
+            <div class="form-group">
+                <label>Tipo de Documento</label>
+                <select class="proprietario-tipo-documento" data-index="${index}" required>
+                    <option value="">Selecione...</option>
+                    <option value="CPF">CPF</option>
+                    <option value="RG">RG</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Nº Documento</label>
+                <input type="text" class="proprietario-numero-documento" data-index="${index}" required>
+            </div>
+        </div>
+    `;
+    
+    proprietariosContainer.appendChild(proprietarioItem);
+    
+    // Adicionar listeners para máscaras e conversão para maiúsculas
+    setupProprietarioListeners(proprietarioItem);
+    
+    // Scroll suave para o novo proprietário
+    proprietarioItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Função para remover um proprietário
+window.removeProprietario = function(button) {
+    const proprietarioItem = button.closest('.proprietario-item');
+    const index = parseInt(proprietarioItem.getAttribute('data-proprietario-index'));
+    
+    // Não permitir remover o primeiro proprietário
+    if (index === 0) {
+        return;
+    }
+    
+    proprietarioItem.remove();
+    
+    // Renumerar os proprietários restantes
+    updateProprietarioNumbers();
+}
+
+// Função para renumerar os proprietários após remoção
+function updateProprietarioNumbers() {
+    const proprietarioItems = document.querySelectorAll('.proprietario-item');
+    proprietarioCount = proprietarioItems.length;
+    
+    proprietarioItems.forEach((item, index) => {
+        const title = item.querySelector('h3');
+        if (title) {
+            title.textContent = `Proprietário ${index + 1}`;
+        }
+        item.setAttribute('data-proprietario-index', index);
+        
+        // Atualizar data-index nos inputs
+        const inputs = item.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            input.setAttribute('data-index', index);
+        });
+    });
+}
+
+// Função para configurar listeners em um item de proprietário
+function setupProprietarioListeners(proprietarioItem) {
+    const nomeInput = proprietarioItem.querySelector('.proprietario-nome');
+    const tipoDocumentoSelect = proprietarioItem.querySelector('.proprietario-tipo-documento');
+    const numeroDocumentoInput = proprietarioItem.querySelector('.proprietario-numero-documento');
+    
+    // Converter nome para maiúsculas
+    if (nomeInput) {
+        nomeInput.addEventListener('input', convertToUpperCase);
+    }
+    
+    // Aplicar máscara no número do documento baseado no tipo
+    if (tipoDocumentoSelect && numeroDocumentoInput) {
+        tipoDocumentoSelect.addEventListener('change', function() {
+            applyDocumentMask(numeroDocumentoInput, this.value);
+        });
+        
+        // Converter número do documento para maiúsculas
+        numeroDocumentoInput.addEventListener('input', convertToUpperCase);
+    }
+}
+
+// Função para aplicar máscara no documento
+function applyDocumentMask(input, tipo) {
+    if (!input) return;
+    
+    let value = input.value.replace(/\D/g, '');
+    
+    if (tipo === 'CPF') {
+        if (value.length <= 11) {
+            value = value.replace(/(\d{3})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d)/, '$1.$2');
+            value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+        }
+    } else if (tipo === 'RG') {
+        // Máscara simples para RG (pode ser ajustada conforme necessário)
+        if (value.length > 9) {
+            value = value.substring(0, 9);
+        }
+    }
+    
+    input.value = value;
+}
+
+// Event listener para o botão de adicionar proprietário
+if (addProprietarioBtn) {
+    addProprietarioBtn.addEventListener('click', addProprietario);
+}
+
+// Configurar listeners no primeiro proprietário
+window.addEventListener('load', () => {
+    const firstProprietarioItem = document.querySelector('.proprietario-item[data-proprietario-index="0"]');
+    if (firstProprietarioItem) {
+        setupProprietarioListeners(firstProprietarioItem);
+    }
+});
+
 // Submit do formulário
 occurrenceForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    
+    console.log('Formulário submetido');
+    
+    // Verificar validação HTML5
+    if (!occurrenceForm.checkValidity()) {
+        console.log('Formulário inválido - campos obrigatórios não preenchidos');
+        occurrenceForm.reportValidity();
+        return;
+    }
     
     // Validar datas antes de enviar
     const dataApreensao = document.getElementById('dataApreensao').value;
@@ -71,10 +253,7 @@ occurrenceForm.addEventListener('submit', async (e) => {
         return;
     }
     
-    // Função auxiliar para converter strings para maiúsculas
-    function toUpperCase(value) {
-        return typeof value === 'string' ? value.toUpperCase() : value;
-    }
+    console.log('Coletando dados do formulário...');
     
     // Coletar dados do formulário e converter para maiúsculas
     const formData = {
@@ -93,11 +272,7 @@ occurrenceForm.addEventListener('submit', async (e) => {
             quantidade: toUpperCase(document.getElementById('quantidade').value),
             descricao: toUpperCase(document.getElementById('descricaoItem').value)
         },
-        proprietario: {
-            nome: toUpperCase(document.getElementById('nomeProprietario').value),
-            tipoDocumento: document.getElementById('tipoDocumento').value, // Select mantém valor original
-            numeroDocumento: toUpperCase(document.getElementById('numeroDocumento').value)
-        },
+        proprietarios: collectProprietarios(),
         policial: {
             nome: toUpperCase(document.getElementById('nomePolicial').value),
             matricula: toUpperCase(document.getElementById('matricula').value),
@@ -110,12 +285,16 @@ occurrenceForm.addEventListener('submit', async (e) => {
         }
     };
     
+    console.log('Dados coletados:', formData);
+    
     // Mostrar loading global
     showLoading('Salvando ocorrência', 'Enviando dados para o sistema...');
     hideMessages();
     
     try {
+        console.log('Enviando dados para o backend...');
         const result = await ipcRenderer.invoke('save-occurrence', formData);
+        console.log('Resposta do backend:', result);
         
         if (result.success) {
             hideLoading();
@@ -321,6 +500,27 @@ function clearForm() {
     hideMessages();
     hideLoading();
     
+    // Limpar proprietários extras (manter apenas o primeiro)
+    const proprietarioItems = document.querySelectorAll('.proprietario-item');
+    proprietarioItems.forEach((item, index) => {
+        if (index > 0) {
+            item.remove();
+        } else {
+            // Limpar campos do primeiro proprietário
+            const nomeInput = item.querySelector('.proprietario-nome');
+            const tipoSelect = item.querySelector('.proprietario-tipo-documento');
+            const numeroInput = item.querySelector('.proprietario-numero-documento');
+            
+            if (nomeInput) nomeInput.value = '';
+            if (tipoSelect) tipoSelect.value = '';
+            if (numeroInput) numeroInput.value = '';
+        }
+    });
+    
+    // Resetar contador de proprietários
+    proprietarioCount = 1;
+    updateProprietarioNumbers();
+    
     // Reinicializar calendários com data atual
     if (typeof initializeDatePickers === 'function') {
         initializeDatePickers();
@@ -429,37 +629,7 @@ function formatRG(value) {
     }
 }
 
-// Aplicar máscara no campo de documento
-document.getElementById('numeroDocumento').addEventListener('input', function(e) {
-    const tipo = document.getElementById('tipoDocumento').value;
-    let value = e.target.value;
-    
-    if (tipo === 'CPF') {
-        e.target.value = formatCPF(value);
-    } else if (tipo === 'RG') {
-        e.target.value = formatRG(value);
-    }
-});
-
-// Limpar e reaplicar máscara quando mudar o tipo de documento
-document.getElementById('tipoDocumento').addEventListener('change', function(e) {
-    const numeroDocumento = document.getElementById('numeroDocumento');
-    const value = numeroDocumento.value.replace(/\D/g, '');
-    
-    if (e.target.value === 'CPF') {
-        numeroDocumento.value = formatCPF(value);
-        numeroDocumento.placeholder = '000.000.000-00';
-        numeroDocumento.maxLength = 14;
-    } else if (e.target.value === 'RG') {
-        numeroDocumento.value = formatRG(value);
-        numeroDocumento.placeholder = '0.000.000 ou 00.000.000-0';
-        numeroDocumento.maxLength = 12;
-    } else {
-        numeroDocumento.value = value;
-        numeroDocumento.placeholder = '';
-        numeroDocumento.removeAttribute('maxLength');
-    }
-});
+// Máscaras de documento agora são aplicadas via setupProprietarioListeners para cada proprietário
 
 // Função para atualizar o Nº Genesis com o ano automaticamente
 function updateGenesisWithYear() {
@@ -779,19 +949,67 @@ function fillFormWithExtractedData(data) {
         }, 100);
     }
     
-    // Dados do Proprietário
-    if (data.nomeProprietario) {
-        document.getElementById('nomeProprietario').value = toUpperCase(data.nomeProprietario);
-    }
-    
-    if (data.tipoDocumento) {
-        document.getElementById('tipoDocumento').value = data.tipoDocumento; // Select mantém valor original
-        // Trigger change event para aplicar máscara
-        document.getElementById('tipoDocumento').dispatchEvent(new Event('change'));
-    }
-    
-    if (data.numeroDocumento) {
-        document.getElementById('numeroDocumento').value = toUpperCase(data.numeroDocumento);
+    // Dados do Proprietário (suporta múltiplos proprietários)
+    if (data.proprietarios && Array.isArray(data.proprietarios) && data.proprietarios.length > 0) {
+        // Limpar proprietários existentes (exceto o primeiro)
+        const proprietarioItems = document.querySelectorAll('.proprietario-item');
+        proprietarioItems.forEach((item, index) => {
+            if (index > 0) {
+                item.remove();
+            }
+        });
+        proprietarioCount = 1;
+        
+        // Preencher cada proprietário
+        data.proprietarios.forEach((proprietario, index) => {
+            if (index === 0) {
+                // Preencher o primeiro proprietário
+                const firstItem = document.querySelector('.proprietario-item[data-proprietario-index="0"]');
+                if (firstItem) {
+                    const nomeInput = firstItem.querySelector('.proprietario-nome');
+                    const tipoSelect = firstItem.querySelector('.proprietario-tipo-documento');
+                    const numeroInput = firstItem.querySelector('.proprietario-numero-documento');
+                    
+                    if (nomeInput && proprietario.nome) nomeInput.value = toUpperCase(proprietario.nome);
+                    if (tipoSelect && proprietario.tipoDocumento) {
+                        tipoSelect.value = proprietario.tipoDocumento;
+                        tipoSelect.dispatchEvent(new Event('change'));
+                    }
+                    if (numeroInput && proprietario.numeroDocumento) numeroInput.value = toUpperCase(proprietario.numeroDocumento);
+                }
+            } else {
+                // Adicionar novos proprietários
+                addProprietario();
+                const newItem = document.querySelectorAll('.proprietario-item')[index];
+                if (newItem) {
+                    const nomeInput = newItem.querySelector('.proprietario-nome');
+                    const tipoSelect = newItem.querySelector('.proprietario-tipo-documento');
+                    const numeroInput = newItem.querySelector('.proprietario-numero-documento');
+                    
+                    if (nomeInput && proprietario.nome) nomeInput.value = toUpperCase(proprietario.nome);
+                    if (tipoSelect && proprietario.tipoDocumento) {
+                        tipoSelect.value = proprietario.tipoDocumento;
+                        tipoSelect.dispatchEvent(new Event('change'));
+                    }
+                    if (numeroInput && proprietario.numeroDocumento) numeroInput.value = toUpperCase(proprietario.numeroDocumento);
+                }
+            }
+        });
+    } else if (data.nomeProprietario || data.tipoDocumento || data.numeroDocumento) {
+        // Compatibilidade com formato antigo (um único proprietário)
+        const firstItem = document.querySelector('.proprietario-item[data-proprietario-index="0"]');
+        if (firstItem) {
+            const nomeInput = firstItem.querySelector('.proprietario-nome');
+            const tipoSelect = firstItem.querySelector('.proprietario-tipo-documento');
+            const numeroInput = firstItem.querySelector('.proprietario-numero-documento');
+            
+            if (nomeInput && data.nomeProprietario) nomeInput.value = toUpperCase(data.nomeProprietario);
+            if (tipoSelect && data.tipoDocumento) {
+                tipoSelect.value = data.tipoDocumento;
+                tipoSelect.dispatchEvent(new Event('change'));
+            }
+            if (numeroInput && data.numeroDocumento) numeroInput.value = toUpperCase(data.numeroDocumento);
+        }
     }
     
     // Dados do Policial

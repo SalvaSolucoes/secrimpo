@@ -407,6 +407,46 @@ function toUpperCase(value) {
   return value.trim().toUpperCase();
 }
 
+// Funções auxiliares para concatenar dados de múltiplos proprietários
+function concatenateProprietariosNomes(data) {
+  const proprietarios = data.proprietarios && Array.isArray(data.proprietarios) && data.proprietarios.length > 0
+    ? data.proprietarios
+    : (data.proprietario ? [data.proprietario] : []);
+  
+  if (proprietarios.length === 0) return '';
+  
+  return proprietarios
+    .map(p => toUpperCase(p.nome || '').trim())
+    .filter(nome => nome !== '')
+    .join(', ');
+}
+
+function concatenateProprietariosTiposDocumento(data) {
+  const proprietarios = data.proprietarios && Array.isArray(data.proprietarios) && data.proprietarios.length > 0
+    ? data.proprietarios
+    : (data.proprietario ? [data.proprietario] : []);
+  
+  if (proprietarios.length === 0) return '';
+  
+  return proprietarios
+    .map(p => (p.tipoDocumento || '').trim())
+    .filter(tipo => tipo !== '')
+    .join(', ');
+}
+
+function concatenateProprietariosNumerosDocumento(data) {
+  const proprietarios = data.proprietarios && Array.isArray(data.proprietarios) && data.proprietarios.length > 0
+    ? data.proprietarios
+    : (data.proprietario ? [data.proprietario] : []);
+  
+  if (proprietarios.length === 0) return '';
+  
+  return proprietarios
+    .map(p => toUpperCase(p.numeroDocumento || '').trim())
+    .filter(numero => numero !== '')
+    .join(', ');
+}
+
 // IPC Handler para salvar ocorrência
 ipcMain.handle('save-occurrence', async (event, data) => {
   try {
@@ -451,9 +491,10 @@ ipcMain.handle('save-occurrence', async (event, data) => {
             toUpperCase(data.itemApreendido.item || ''),
             toUpperCase(data.itemApreendido.quantidade || ''),
             toUpperCase(data.itemApreendido.descricao || ''),
-            toUpperCase(data.proprietario.nome || ''),
-            data.proprietario.tipoDocumento || '', // Select mantém valor original
-            toUpperCase(data.proprietario.numeroDocumento || ''),
+            // Suporta múltiplos proprietários (concatena todos para Google Sheets)
+            concatenateProprietariosNomes(data),
+            concatenateProprietariosTiposDocumento(data),
+            concatenateProprietariosNumerosDocumento(data),
             toUpperCase(data.policial.nome || ''),
             toUpperCase(data.policial.matricula || ''),
             data.policial.graduacao || '', // Select mantém valor original
@@ -727,9 +768,10 @@ ipcMain.handle('update-occurrence', async (event, data) => {
       item: data.itemApreendido?.item ? normalizeCapitalization(data.itemApreendido.item) : '',
       quantidade: data.itemApreendido?.quantidade || '',
       descricaoItem: data.itemApreendido?.descricao || '',
-      nomeProprietario: data.proprietario?.nome || '',
-      tipoDocumento: data.proprietario?.tipoDocumento || '',
-      numeroDocumento: data.proprietario?.numeroDocumento || '',
+      // Suporta múltiplos proprietários (concatena todos para Google Sheets)
+      nomeProprietario: concatenateProprietariosNomes(data),
+      tipoDocumento: concatenateProprietariosTiposDocumento(data),
+      numeroDocumento: concatenateProprietariosNumerosDocumento(data),
       nomePolicial: data.policial?.nome || '',
       matricula: data.policial?.matricula || '',
       graduacao: data.policial?.graduacao || '',
@@ -1089,27 +1131,40 @@ ipcMain.handle('export-occurrences', async (event, occurrencesData) => {
     
     occurrencesData.forEach(data => {
       try {
-        worksheetData.push([
-          new Date(data.metadata.dataRegistro).toLocaleString('pt-BR'),
-          data.ocorrencia.numeroGenesis,
-          data.ocorrencia.unidade,
-          isoToBrDate(data.ocorrencia.dataApreensao),
-          data.ocorrencia.leiInfrigida,
-          data.ocorrencia.artigo,
-          data.ocorrencia.status,
-          normalizeCapitalization(data.itemApreendido.especie),
-          normalizeCapitalization(data.itemApreendido.item),
-          data.itemApreendido.quantidade,
-          data.itemApreendido.descricao,
-          data.proprietario.nome,
-          data.proprietario.tipoDocumento,
-          data.proprietario.numeroDocumento,
-          data.policial.nome,
-          data.policial.matricula,
-          data.policial.graduacao,
-          data.policial.unidade,
-          data.metadata.registradoPor
-        ]);
+        // Suporta múltiplos proprietários - cria uma linha para cada proprietário
+        const proprietarios = data.proprietarios && Array.isArray(data.proprietarios) && data.proprietarios.length > 0
+          ? data.proprietarios
+          : (data.proprietario ? [data.proprietario] : []);
+        
+        // Se não houver proprietários, cria uma linha com campos vazios
+        if (proprietarios.length === 0) {
+          proprietarios.push({ nome: '', tipoDocumento: '', numeroDocumento: '' });
+        }
+        
+        // Criar uma linha para cada proprietário
+        proprietarios.forEach(proprietario => {
+          worksheetData.push([
+            new Date(data.metadata.dataRegistro).toLocaleString('pt-BR'),
+            data.ocorrencia.numeroGenesis,
+            data.ocorrencia.unidade,
+            isoToBrDate(data.ocorrencia.dataApreensao),
+            data.ocorrencia.leiInfrigida,
+            data.ocorrencia.artigo,
+            data.ocorrencia.status,
+            normalizeCapitalization(data.itemApreendido.especie),
+            normalizeCapitalization(data.itemApreendido.item),
+            data.itemApreendido.quantidade,
+            data.itemApreendido.descricao,
+            proprietario.nome || '',
+            proprietario.tipoDocumento || '',
+            proprietario.numeroDocumento || '',
+            data.policial.nome,
+            data.policial.matricula,
+            data.policial.graduacao,
+            data.policial.unidade,
+            data.metadata.registradoPor
+          ]);
+        });
       } catch (err) {
         console.error('Erro ao processar ocorrência:', err);
       }
@@ -1209,13 +1264,62 @@ ipcMain.handle('print-termo-apreensao', async (event, occurrenceData) => {
       }
     });
 
+    // Garantir que os dados tenham proprietarios como array (não concatenado)
+    // Esta função normaliza os dados antes de usar
+    function normalizeProprietariosData(data) {
+      let normalized = JSON.parse(JSON.stringify(data));
+      
+      // Se proprietarios não existe ou não é array válido, tentar criar a partir de proprietario
+      if (!normalized.proprietarios || !Array.isArray(normalized.proprietarios) || normalized.proprietarios.length === 0) {
+        // Se proprietario existe e tem valores concatenados (contém vírgula), separar
+        if (normalized.proprietario && normalized.proprietario.nome) {
+          const nome = normalized.proprietario.nome;
+          const tipoDoc = normalized.proprietario.tipoDocumento || '';
+          const numDoc = normalized.proprietario.numeroDocumento || '';
+          
+          // Verificar se os valores estão concatenados (contêm vírgula)
+          if (nome.includes(',') || tipoDoc.includes(',') || numDoc.includes(',')) {
+            // Separar valores concatenados
+            const nomes = nome.split(',').map(n => n.trim()).filter(n => n);
+            const tipos = tipoDoc.split(',').map(t => t.trim()).filter(t => t);
+            const numeros = numDoc.split(',').map(n => n.trim()).filter(n => n);
+            
+            // Criar array de proprietários a partir dos valores separados
+            const maxLength = Math.max(nomes.length, tipos.length, numeros.length);
+            normalized.proprietarios = [];
+            
+            for (let i = 0; i < maxLength; i++) {
+              normalized.proprietarios.push({
+                nome: nomes[i] || '',
+                tipoDocumento: tipos[i] || '',
+                numeroDocumento: numeros[i] || ''
+              });
+            }
+          } else {
+            // Valores não concatenados, criar array com um único proprietário
+            normalized.proprietarios = [{
+              nome: nome,
+              tipoDocumento: tipoDoc,
+              numeroDocumento: numDoc
+            }];
+          }
+        } else {
+          normalized.proprietarios = [];
+        }
+      }
+      
+      return normalized;
+    }
+    
+    const normalizedData = normalizeProprietariosData(occurrenceData);
+    
     // Carregar o template do termo de apreensão
     const templatePath = path.join(__dirname, 'templates/termo_apreensao.html');
     await tempWindow.loadFile(templatePath);
 
     // Injetar os dados da ocorrência no template
     await tempWindow.webContents.executeJavaScript(`
-      window.occurrenceData = ${JSON.stringify(occurrenceData)};
+      window.occurrenceData = ${JSON.stringify(normalizedData)};
       if (typeof populateForm === 'function') {
         populateForm(window.occurrenceData);
       }
@@ -1269,43 +1373,57 @@ ipcMain.handle('print-termo-apreensao', async (event, occurrenceData) => {
     // Aguardar um pouco para garantir que a página carregou
     await new Promise(resolve => setTimeout(resolve, 300));
 
+    // Normalizar dados novamente para garantir consistência (normalizedData já foi criado acima)
     // Serializar dados antes de enviar para evitar erro de clonagem
     let serializedOccurrenceData;
     try {
-      serializedOccurrenceData = JSON.parse(JSON.stringify(occurrenceData));
+      serializedOccurrenceData = JSON.parse(JSON.stringify(normalizedData));
     } catch (serializeError) {
       console.error('Erro ao serializar dados da ocorrência:', serializeError);
       // Criar objeto básico serializável como fallback
       serializedOccurrenceData = {
         ocorrencia: {
-          numeroGenesis: occurrenceData?.ocorrencia?.numeroGenesis || '',
-          unidade: occurrenceData?.ocorrencia?.unidade || '',
-          dataApreensao: occurrenceData?.ocorrencia?.dataApreensao || '',
-          leiInfrigida: occurrenceData?.ocorrencia?.leiInfrigida || '',
-          artigo: occurrenceData?.ocorrencia?.artigo || '',
-          status: occurrenceData?.ocorrencia?.status || '',
-          numeroPje: occurrenceData?.ocorrencia?.numeroPje || ''
+          numeroGenesis: normalizedData?.ocorrencia?.numeroGenesis || '',
+          unidade: normalizedData?.ocorrencia?.unidade || '',
+          dataApreensao: normalizedData?.ocorrencia?.dataApreensao || '',
+          leiInfrigida: normalizedData?.ocorrencia?.leiInfrigida || '',
+          artigo: normalizedData?.ocorrencia?.artigo || '',
+          status: normalizedData?.ocorrencia?.status || '',
+          numeroPje: normalizedData?.ocorrencia?.numeroPje || ''
         },
         itemApreendido: {
-          especie: occurrenceData?.itemApreendido?.especie || '',
-          item: occurrenceData?.itemApreendido?.item || '',
-          quantidade: occurrenceData?.itemApreendido?.quantidade || '',
-          descricao: occurrenceData?.itemApreendido?.descricao || ''
+          especie: normalizedData?.itemApreendido?.especie || '',
+          item: normalizedData?.itemApreendido?.item || '',
+          quantidade: normalizedData?.itemApreendido?.quantidade || '',
+          descricao: normalizedData?.itemApreendido?.descricao || ''
         },
-        proprietario: {
-          nome: occurrenceData?.proprietario?.nome || '',
-          tipoDocumento: occurrenceData?.proprietario?.tipoDocumento || '',
-          numeroDocumento: occurrenceData?.proprietario?.numeroDocumento || ''
-        },
+        // Suporta múltiplos proprietários, mantém compatibilidade com formato antigo
+        proprietarios: normalizedData?.proprietarios && Array.isArray(normalizedData.proprietarios)
+          ? normalizedData.proprietarios
+          : (normalizedData?.proprietario
+            ? [{
+                nome: normalizedData.proprietario.nome || '',
+                tipoDocumento: normalizedData.proprietario.tipoDocumento || '',
+                numeroDocumento: normalizedData.proprietario.numeroDocumento || ''
+              }]
+            : []),
+        // Mantém proprietario para compatibilidade (usa o primeiro)
+        proprietario: normalizedData?.proprietarios && Array.isArray(normalizedData.proprietarios) && normalizedData.proprietarios.length > 0
+          ? normalizedData.proprietarios[0]
+          : (normalizedData?.proprietario || {
+              nome: '',
+              tipoDocumento: '',
+              numeroDocumento: ''
+            }),
         policial: {
-          nome: occurrenceData?.policial?.nome || '',
-          matricula: occurrenceData?.policial?.matricula || '',
-          graduacao: occurrenceData?.policial?.graduacao || '',
-          unidade: occurrenceData?.policial?.unidade || ''
+          nome: normalizedData?.policial?.nome || '',
+          matricula: normalizedData?.policial?.matricula || '',
+          graduacao: normalizedData?.policial?.graduacao || '',
+          unidade: normalizedData?.policial?.unidade || ''
         },
         metadata: {
-          registradoPor: occurrenceData?.metadata?.registradoPor || '',
-          dataRegistro: occurrenceData?.metadata?.dataRegistro || new Date().toISOString()
+          registradoPor: normalizedData?.metadata?.registradoPor || '',
+          dataRegistro: normalizedData?.metadata?.dataRegistro || new Date().toISOString()
         }
       };
     }
@@ -1433,11 +1551,24 @@ ipcMain.handle('save-termo-as-png', async (event, occurrenceData) => {
           quantidade: occurrenceData?.itemApreendido?.quantidade || '',
           descricao: occurrenceData?.itemApreendido?.descricao || ''
         },
-        proprietario: {
-          nome: occurrenceData?.proprietario?.nome || '',
-          tipoDocumento: occurrenceData?.proprietario?.tipoDocumento || '',
-          numeroDocumento: occurrenceData?.proprietario?.numeroDocumento || ''
-        },
+        // Suporta múltiplos proprietários, mantém compatibilidade com formato antigo
+        proprietarios: occurrenceData?.proprietarios && Array.isArray(occurrenceData.proprietarios)
+          ? occurrenceData.proprietarios
+          : (occurrenceData?.proprietario
+            ? [{
+                nome: occurrenceData.proprietario.nome || '',
+                tipoDocumento: occurrenceData.proprietario.tipoDocumento || '',
+                numeroDocumento: occurrenceData.proprietario.numeroDocumento || ''
+              }]
+            : []),
+        // Mantém proprietario para compatibilidade (usa o primeiro)
+        proprietario: occurrenceData?.proprietarios && Array.isArray(occurrenceData.proprietarios) && occurrenceData.proprietarios.length > 0
+          ? occurrenceData.proprietarios[0]
+          : (occurrenceData?.proprietario || {
+              nome: '',
+              tipoDocumento: '',
+              numeroDocumento: ''
+            }),
         policial: {
           nome: occurrenceData?.policial?.nome || '',
           matricula: occurrenceData?.policial?.matricula || '',

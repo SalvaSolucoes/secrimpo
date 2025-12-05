@@ -1,6 +1,6 @@
 {
   "name": "secrimpo-pmdf",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Painel para gestão de ocorrências",
   "main": "src/main.js",
   "scripts": {
@@ -23,10 +23,10 @@
     "mammoth": "^1.11.0",
     "pdfjs-dist": "^4.8.69",
     "tesseract.js": "^6.0.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
   },
   "devDependencies": {
-    "electron": "^27.0.0",
+    "electron": "^39.2.5",
     "electron-builder": "^24.6.4"
   },
   "build": {

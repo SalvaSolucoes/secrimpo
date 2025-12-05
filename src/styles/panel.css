@@ -994,3 +994,66 @@ body {
         padding: 30px 20px;
     }
 }
+
+/* Estilos para múltiplos proprietários */
+.proprietario-item {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.proprietario-item:last-child {
+    margin-bottom: 0;
+}
+
+.proprietario-item h3 {
+    color: #071d49;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+.btn-add-proprietario {
+    padding: 0.5rem 1rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-add-proprietario:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.btn-remove-proprietario {
+    padding: 0.4rem 0.8rem;
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.btn-remove-proprietario:hover {
+    background: #da190b;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+#proprietariosContainer {
+    margin-top: 10px;
+}

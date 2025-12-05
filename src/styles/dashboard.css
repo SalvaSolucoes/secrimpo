@@ -1158,6 +1158,35 @@ body {
     min-height: 80px;
 }
 
+/* Estilos específicos para proprietários no modal (igual ao formulário de nova ocorrência) */
+#edit-proprietariosContainer {
+    margin-top: 10px;
+}
+
+#edit-proprietariosContainer .proprietario-item {
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+#edit-proprietariosContainer .proprietario-item:last-child {
+    margin-bottom: 0;
+}
+
+#edit-proprietariosContainer .proprietario-item h3 {
+    color: #071d49;
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 15px;
+}
+
+#edit-proprietariosContainer .proprietario-item .btn-remove-proprietario {
+    margin-top: 0;
+}
+
 /* Formulário de Suporte */
 .suporte-form {
     display: flex;

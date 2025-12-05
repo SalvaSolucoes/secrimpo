@@ -612,17 +612,10 @@
             </tbody>
         </table>
 
-        <div class="section-title">Dados do Proprietário</div>
+        <div class="section-title">Dados do(s) Proprietário(s)</div>
 
-        <div class="form-row">
-            <div class="form-group" style="flex: 2;">
-                <label>Nome Completo</label>
-                <input type="text" id="nomeProprietario" readonly>
-            </div>
-            <div class="form-group">
-                <label id="labelDocumentoProprietario">RG/CPF</label>
-                <input type="text" id="documentoProprietario" readonly>
-            </div>
+        <div id="proprietariosContainer">
+            <!-- Proprietários serão adicionados dinamicamente aqui -->
         </div>
 
         <div class="section-title">Dados do Policial Condutor</div>
@@ -823,13 +816,41 @@
             document.getElementById('quantidade').value = data.itemApreendido.quantidade || '';
             document.getElementById('descricaoItem').value = data.itemApreendido.descricao || '';
             
-            document.getElementById('nomeProprietario').value = data.proprietario.nome || '';
+            // Obter array de proprietários (suporta formato antigo e novo)
+            const proprietarios = data.proprietarios && Array.isArray(data.proprietarios) && data.proprietarios.length > 0
+                ? data.proprietarios
+                : (data.proprietario ? [data.proprietario] : []);
             
-            // Identificar tipo de documento e atualizar label
-            const tipoDoc = data.proprietario.tipoDocumento || 'RG/CPF';
-            const numeroDoc = data.proprietario.numeroDocumento || '';
-            document.getElementById('labelDocumentoProprietario').textContent = tipoDoc;
-            document.getElementById('documentoProprietario').value = numeroDoc;
+            // Preencher múltiplos proprietários (página 1)
+            const proprietariosContainer = document.getElementById('proprietariosContainer');
+            proprietariosContainer.innerHTML = '';
+            
+            if (proprietarios.length > 0) {
+                proprietarios.forEach((proprietario, index) => {
+                    const proprietarioDiv = document.createElement('div');
+                    proprietarioDiv.className = 'form-row';
+                    proprietarioDiv.style.marginBottom = '15px';
+                    
+                    const tipoDoc = proprietario.tipoDocumento || 'RG/CPF';
+                    const numeroDoc = proprietario.numeroDocumento || '';
+                    
+                    proprietarioDiv.innerHTML = `
+                        <div style="margin-bottom: 8px;">
+                            <strong style="color: #071d49; font-size: 14px;">Proprietário ${index + 1}</strong>
+                        </div>
+                        <div class="form-group" style="flex: 2;">
+                            <label>Nome Completo</label>
+                            <input type="text" value="${proprietario.nome || ''}" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>${tipoDoc}</label>
+                            <input type="text" value="${numeroDoc}" readonly>
+                        </div>
+                    `;
+                    
+                    proprietariosContainer.appendChild(proprietarioDiv);
+                });
+            }
             
             document.getElementById('nomePolicial').value = data.policial.nome || '';
             document.getElementById('matriculaPolicial').value = data.policial.matricula || '';
@@ -845,8 +866,28 @@
             document.getElementById('labelValor').textContent = '-';
             document.getElementById('labelPeso').textContent = data.itemApreendido.quantidade || '';
             document.getElementById('labelNumeroSerie').textContent = '-';
-            document.getElementById('labelProprietario').textContent = (data.proprietario.nome || '').toUpperCase();
-            document.getElementById('labelDocumento').textContent = numeroDoc;
+            
+            // Preencher label com múltiplos proprietários (página 2)
+            if (proprietarios.length > 0) {
+                // Concatenar nomes dos proprietários
+                const nomesProprietarios = proprietarios
+                    .map((p, index) => `Proprietário ${index + 1}: ${(p.nome || '').toUpperCase()}`)
+                    .join(' | ');
+                document.getElementById('labelProprietario').textContent = nomesProprietarios;
+                
+                // Concatenar documentos
+                const documentos = proprietarios
+                    .map((p, index) => {
+                        const tipo = p.tipoDocumento || 'RG/CPF';
+                        const numero = p.numeroDocumento || '';
+                        return `Proprietário ${index + 1} (${tipo}): ${numero}`;
+                    })
+                    .join(' | ');
+                document.getElementById('labelDocumento').textContent = documentos;
+            } else {
+                document.getElementById('labelProprietario').textContent = '';
+                document.getElementById('labelDocumento').textContent = '';
+            }
             
             // Nº PJE - mostrar valor ou "-" se vazio
             const numeroPje = data.ocorrencia.numeroPje || '';
