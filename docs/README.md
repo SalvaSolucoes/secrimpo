@@ -150,7 +150,7 @@ build-completo.bat
 
 Para suporte técnico ou dúvidas sobre o sistema:
 - Email: salvasolucoes@gmail.com
-- Telefone: (61) 9196-3651
+- Telefone: (61) 99196-3651
 - Documentação: Consulte os arquivos em `docs/`
 
 ## Desenvolvido por
